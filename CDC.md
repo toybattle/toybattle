@@ -6,7 +6,7 @@
 
 ## 1. Objectifs du projet
 
-Développer un jeu de plateau en tour par tour, *Toy Battle*, en Python avec une interface graphique via **pygame**. Le jeu se joue à 2 joueurs en réseau local, avec une option contre l'ordinateur.
+Développer un jeu de plateau en tour par tour, *Toy Battle*, en Python avec une interface graphique via **pygame**. Le jeu se joue à 2 joueurs en réseau, avec une option contre l'ordinateur.
 
 ---
 
@@ -18,7 +18,7 @@ Développer un jeu de plateau en tour par tour, *Toy Battle*, en Python avec une
 - Consultation des statistiques (victoires, défaites, parties jouées)
 
 ### 2.2 Modes de jeu
-- Joueur vs Joueur en réseau local *(obligatoire)*
+- Joueur vs Joueur en réseau
 - Joueur vs Ordinateur *(optionnel mais recommandé)*
 
 ### 2.3 Plateau de jeu
@@ -49,11 +49,11 @@ Développer un jeu de plateau en tour par tour, *Toy Battle*, en Python avec une
 | `Reseau` | Gestion client/serveur (sockets) |
 
 ### 3.2 Stockage des données
-- Fichier **JSON** ou base **SQLite** pour les comptes et statistiques des joueurs
+- Base de donnée **SQL** via **SUPABASE** pour les comptes et statistiques des joueurs
 
 ### 3.3 Réseau
 - Communication client/serveur via le module `socket` de Python
-- Un joueur héberge la partie (serveur), l'autre se connecte (client)
+- Un joueur héberge la partie (serveur), l'autre se connecte (client) OU Les deux joueur se connecte a un serveur
 
 ---
 
@@ -104,3 +104,19 @@ Développer un jeu de plateau en tour par tour, *Toy Battle*, en Python avec une
 - Prévoir une **synchronisation des états** du plateau entre les deux machines
 - Commenter le code dès le début
 - Utiliser impérativement **pygame** pour l'interface graphique
+
+---
+
+### AVENIRE ###
+
+## 7. Creation du site web
+-Mise en place d'une landing page pour présenter le projet
+-Possibiliter de creation d'un compte pour acceder a ses statistique (Voir: **2.1 indice 3**)
+-Leaderboard visible depuis le sit web sans connection
+
+---
+
+## 8. Creation d'un launcher
+-Gestion de la mise a joure du jeu
+-Historique de l'actualiter
+-Affichage du leaderboard
