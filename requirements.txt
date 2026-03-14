@@ -1,0 +1,4 @@
+supabase
+pygame
+socket
+python-dotenv

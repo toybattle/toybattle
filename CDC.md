@@ -107,16 +107,16 @@ Développer un jeu de plateau en tour par tour, *Toy Battle*, en Python avec une
 
 ---
 
-### AVENIRE ###
+### AVENIR ###
 
 ## 7. Creation du site web
 -Mise en place d'une landing page pour présenter le projet
--Possibiliter de creation d'un compte pour acceder a ses statistique (Voir: **2.1 indice 3**)
--Leaderboard visible depuis le sit web sans connection
+-Possibilité de création d'un compte pour accéder à ses statistiques (Voir: **2.1 indice 3**)
+-Leaderboard visible depuis le site web sans connexion
 
 ---
 
 ## 8. Creation d'un launcher
--Gestion de la mise a joure du jeu
--Historique de l'actualiter
+-Gestion de la mise a jour du jeu
+-Historique de l'actualité
 -Affichage du leaderboard
