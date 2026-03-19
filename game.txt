@@ -1,0 +1,50 @@
+Objectif: 
+1) capturer la forterece enemie (poser une tuile dessous)
+2) atteindre un certain nombre d'etoile (défini par les map).
+3) si plus de troupe (dans la pioche), c'est la personne avec le plus d'étoile qui l'emporte
+
+Tuile:
+Force (1 a 7 + un jocker) 
+recouvrir les tuile enimie si elles ont une force supperieur (Fj > Fe) 
+peut avoir des pouvoir
+
+Au démarage de la partit, le joueur qui commance a 3 tuile et l'autre 4
+
+Il y a 24 tuile (3 par personnage) et au démarage, on e retire 4 (Sois 20 pour une partie)
+
+Récupération d'une étoile:
+Si toute les troupe entoure une étoile, on la/les récupere 
+
+Au début de chaque toure, on peux sois piocher 2 tuile (maxiume de 8 tuile sur le support),
+sois poser une carte
+
+Pour poser une carte, on dois soi la placer a coter de la forterece soit adjacente a une troupe
+on peux poser sa popre tuile sur une de ses carte (pas forcement de meme force < ou >)
+A la fin de l'effet de la tuile, c'est a l'autre de jouer.
+
+(Si une effet défauce la carte, cela veux dire que l'on la retire de la partie)
+
+Si pioche de carte fin du toure
+
+Si ligne de tuile casser, les carte perde leur chaine et 
+on ne peux plus avancer jusqua ce que l'on la répare
+
+
+CARTE:
+1 Squellete:
+on peux piocher 2 carte
+2 Soldat:
+on rejou imediatement
+3 
+detrui une tuile adverse (meme si elle est plus forte) et supprime la tuile du dessu uniquement. 
+(lien avec la carte en face ou a coter)
+4 Singe:
+va n'importe ou sur la mape
+5 Robot 
+Supprime une des tuile adverse
+6 Licorne
+pioche une seul tuile
+7 trex
+pas de pouvori rien ne peux le recouvrir apar le jocker
+Joker 
+Pas de force mais recouvre tous et ce fais recouvrir par tous

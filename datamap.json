@@ -1,0 +1,99 @@
+[
+    {
+        "name": "MapGlace",
+        "image_path": "assets/map/MapGlace.png",
+        "background_path" : "assets/map/MapGlaceBackground.png",
+        "tiles": [
+            {
+                "x": 50,
+                "y": 35,
+                "width": 45,
+                "height": 45
+            },
+            {
+                "x": 318,
+                "y": 38,
+                "width": 46,
+                "height": 39
+            },
+            {
+                "x": 134,
+                "y": 124,
+                "width": 43,
+                "height": 37
+            },
+            {
+                "x": 237,
+                "y": 121,
+                "width": 42,
+                "height": 36
+            },
+            {
+                "x": 180,
+                "y": 292,
+                "width": 48,
+                "height": 38
+            },
+            {
+                "x": 62,
+                "y": 293,
+                "width": 43,
+                "height": 35
+            },
+            {
+                "x": 299,
+                "y": 295,
+                "width": 41,
+                "height": 32
+            },
+            {
+                "x": 132,
+                "y": 444,
+                "width": 40,
+                "height": 34
+            },
+            {
+                "x": 232,
+                "y": 441,
+                "width": 37,
+                "height": 39
+            },
+            {
+                "x": 313,
+                "y": 528,
+                "width": 42,
+                "height": 35
+            },
+            {
+                "x": 49,
+                "y": 525,
+                "width": 49,
+                "height": 42
+            },
+            {
+                "x": 40,
+                "y": 171,
+                "width": 48,
+                "height": 31
+            },
+            {
+                "x": 325,
+                "y": 170,
+                "width": 49,
+                "height": 34
+            },
+            {
+                "x": 318,
+                "y": 407,
+                "width": 46,
+                "height": 37
+            },
+            {
+                "x": 43,
+                "y": 409,
+                "width": 45,
+                "height": 34
+            }
+        ]
+    }
+]
