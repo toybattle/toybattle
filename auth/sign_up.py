@@ -1,11 +1,14 @@
 from .db import supabase
 
-def sign_up(email, password):
+def sign_up(email, username, password):
     """Connecter un utilisateur existant"""
     try:
         response = supabase.auth.sign_up({
             "email": email,
-            "password": password
+            "password": password,
+            "options": {
+                "data": { "displayName": username }
+            }
         })
         print("✅ Inscription réussie!")
         print(f"Connecté: {response.user.email}")

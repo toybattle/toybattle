@@ -5,14 +5,14 @@ import os
 
 pygame.init()
 
-WIDTH = 800
-HEIGHT = 600
+WIDTH = 1280
+HEIGHT = 720
 
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Map Editor")
+pygame.display.set_caption("MENU Editor")
 
 #Charger image originale
-background = pygame.image.load(r"C:\Users\63043998\Desktop\ToyBattle\toybattle\assets\map\MapHallowen.jpg")
+background = pygame.image.load(r"assets/MainMenu.jpg")
 img_width, img_height = background.get_size()
 
 #Garder le ratio
@@ -38,9 +38,9 @@ button_rect = pygame.Rect(WIDTH - 90, 10, 80, 30)
 font = pygame.font.SysFont(None, 24)
 
 def save_to_json():
-    filename = "datamap.json"
-    map_name = "MapHallowen"
-    image_path = "assets/map/MapHallowen.jpg"
+    filename = "windowsdata.json"
+    menu_name = "MainMenu"
+    image_path = "assets/MainMenu.jpg"
 
     # Charger les données existantes si le fichier existe
     if os.path.exists(filename):
@@ -55,7 +55,7 @@ def save_to_json():
     # Chercher si la map existe déjà
     found = False
     for entry in data:
-        if entry.get("name") == map_name:
+        if entry.get("name") == menu_name:
             entry["tiles"] = tiles
             entry["image_path"] = image_path
             found = True
@@ -64,13 +64,13 @@ def save_to_json():
     # Si la map n'existe pas, l'ajouter
     if not found:
         data.append({
-            "name": map_name,
+            "name": menu_name,
             "image_path": image_path,
             "tiles": tiles
         })
         
     json.dump(data, open(filename, "w"), indent=4)
-    print(f"Map '{map_name}' saved to {filename}.")
+    print(f"Menu '{menu_name}' saved to {filename}.")
 
 
 while True:

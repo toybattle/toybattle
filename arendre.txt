@@ -1,0 +1,46 @@
+I. 1
+ère
+ séance : Spécifications et conception détaillée
+Ce premier document est à déposer sur ENT au plus tard à la fin de la 1ère séance.
+Pour les spécifications, il devra comporter :
+➢ Le titre du sujet choisi,
+➢ Les objectifs du projet : les sujets proposés sont ouverts, expliquez en quelques
+lignes ce que vous allez réaliser. Vous devrez également choisir si vous souhaitez
+utiliser des fichiers ou une base de données (à créer vous même), si vous souhaitez
+un affichage dans le terminal ou une interface graphique.
+➢ Les fonctionnalités détaillées,
+➢ Les IHM (les menus, écrans, …).
+Pour la partie conception détaillée, elle devra comporter :
+➢ La liste des classes utiles pour le projet,
+➢ La liste des fichiers de données ou des tables utiles pour le projet (stockage des
+données),
+➢ La liste des fonctions utiles pour réaliser le projet (objectif, entrées, sorties)
+regroupées par nature de traitement,
+➢ Le planning prévisionnel du projet (qui fait quoi et quand ?).
+B
+
+Le titre du sujet choisi: Sujet 7 : Le jeu « Toy Battle »
+
+Les objectifs du projet: Cree le jeu de sociter toybattle
+Le projet comportera un launcher develooper en c# (WPF) pour la gestion de la mise a jour du jeu 
+et un suivi d'actualliter
+Un site web permetant l'explication du fonctionnement du jeu ansi qu'un leaderboar pour comparer les joueur
+Une base de donner sql (heberger chez supabase) pour stocker les donner des parti des joueur
+Une gestion du jeu en multi-joueur (P2P) via la library socket  et heberger chez Render ou (Koyeb)
+Structure de la map et des carte sauvgader dans des fichiers .json
+Le jeu sera develloper via la library pygame
+
+Les fonctionnalités détaillées:
+Une connection au server
+La possibiliter de choir contre un robot ou un humain
+Choix aléatoire de la map
+Camps aleatoir (Rouge ou bleu (commance en premier ou non))
+Systeme de tirage de carte
+
+Les IHM
+Menu de connexion/Inscription
+Menu leaderboard
+Lancer une partie (Robot/humain)
+Menu pour rtejoinbdre la partie
+UI GameOver/Win
+Carte/Map
