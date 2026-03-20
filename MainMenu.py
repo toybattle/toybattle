@@ -12,7 +12,7 @@ HEIGHT = 1080
 # Chargement des données
 data = json.load(open("windowsdata.json", "r"))
 
-tiles = []
+tiles = {}
 for tile in data[0]["tiles"]:
     new_tile = pygame.Rect(
         int(tile["x"] * WIDTH),
@@ -20,7 +20,7 @@ for tile in data[0]["tiles"]:
         int(tile["width"] * WIDTH),
         int(tile["height"] * HEIGHT)
     )
-    tiles.append(new_tile)
+    tiles[tile["id"]] = new_tile
 
 
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -42,16 +42,9 @@ while True:
         
         if event.type == pygame.MOUSEBUTTONDOWN:
             mouse_pos = pygame.mouse.get_pos()
-            for i, tile in enumerate(tiles):
-                # Ajuster la position des tiles par rapport à la position de la carte
-                adjusted_tile = pygame.Rect(
-                    tile.x,
-                    tile.y,
-                    tile.width,
-                    tile.height
-                )
-                if adjusted_tile.collidepoint(mouse_pos):
-                    print(data[0]["tiles"][i]["id"] + " cliqué")
+
+            if tiles["play"].collidepoint(mouse_pos):
+                print("Play button clicked")
 
     screen.blit(display_img, (0,0))
     pygame.display.flip()
