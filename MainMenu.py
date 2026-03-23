@@ -1,19 +1,7 @@
 import pygame
 import sys
-import gc
-from Leaderboard import leaderboard
 
-def cleanup(screen, ressources, hover_sound):
-        try:
-            hover_sound.stop()
-        except Exception:
-            pass
-        for ressource in ressources.keys():
-            ressources[ressource] = None
-        gc.collect()
-        screen.fill((0, 0, 0))
-        pygame.display.flip()
-        return ressources
+from toybattle import cleanup
 
 def mainMenu(screen, clock, windowsdata, WIDTH, HEIGHT):
 
@@ -43,7 +31,7 @@ def mainMenu(screen, clock, windowsdata, WIDTH, HEIGHT):
     display_leaderboard_button = pygame.transform.scale(leaderboard_button, (buttons["leaderboard"].width, buttons["leaderboard"].height))
     display_quit_button = pygame.transform.scale(quit_button, (buttons["quit"].width, buttons["quit"].height))
 
-    # On mets toutes les textures dans un disctionnaire pour les libérer plus facilement lors du nettoyage
+    # On mets toutes les textures dans un dictionnaire pour les libérer plus facilement lors du nettoyage
     ressources = {
         "background": background,
         "play_button": play_button,

@@ -1,10 +1,10 @@
 import os
+import gc
+import pygame
+import json
 
 # Pour les maniacs qui aiment pas le message de pygame :)
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
-
-import pygame
-import json
 
 from MainMenu import mainMenu
 from Leaderboard import leaderboard
@@ -26,6 +26,18 @@ pygame.display.set_caption("Toybattle")
 
 # Lancement de la clock
 clock = pygame.time.Clock()
+
+def cleanup(screen, ressources, hover_sound):
+        try:
+            hover_sound.stop()
+        except Exception:
+            pass
+        for ressource in ressources.keys():
+            ressources[ressource] = None
+        gc.collect()
+        screen.fill((0, 0, 0))
+        pygame.display.flip()
+        return ressources
 
 menu = mainMenu(screen, clock, windowsdata, WIDTH, HEIGHT)
 
