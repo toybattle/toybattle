@@ -21,10 +21,4 @@ pygame.display.set_caption("Toybattle")
 # Lancement de la clock
 clock = pygame.time.Clock()
 
-menu = mainMenu(screen, clock, windowsdata, WIDTH, HEIGHT)
-
-while True:
-    if menu == 'play':
-        # menu = fonction renvoyant à la création/join de game
-        print("Lancement du jeu")
-        break
+mainMenu(screen, clock, windowsdata, WIDTH, HEIGHT)

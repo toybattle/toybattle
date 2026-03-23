@@ -1,5 +1,18 @@
 import pygame
 import sys
+import gc
+
+def cleanup(screen, ressources, hover_sound):
+        try:
+            hover_sound.stop()
+        except Exception:
+            pass
+        for ressource in ressources.keys():
+            ressources[ressource] = None
+        gc.collect()
+        screen.fill((0, 0, 0))
+        pygame.display.flip()
+        return ressources
 
 def mainMenu(screen, clock, windowsdata, WIDTH, HEIGHT):
 
@@ -29,6 +42,18 @@ def mainMenu(screen, clock, windowsdata, WIDTH, HEIGHT):
     display_leaderboard_button = pygame.transform.scale(leaderboard_button, (buttons["leaderboard"].width, buttons["leaderboard"].height))
     display_quit_button = pygame.transform.scale(quit_button, (buttons["quit"].width, buttons["quit"].height))
 
+    # On mets toutes les textures dans un disctionnaire pour les libérer plus facilement lors du nettoyage
+    ressources = {
+        "background": background,
+        "play_button": play_button,
+        "leaderboard_button": leaderboard_button,
+        "quit_button": quit_button,
+        "display_background": display_background,
+        "display_play_button": display_play_button,
+        "display_leaderboard_button": display_leaderboard_button,
+        "display_quit_button": display_quit_button
+    }
+
     # On créé un dictionnaire pour stocker les textures des boutons afin de les réutiliser dans les animations
     buttons_textures = {
         "play": display_play_button,
@@ -37,10 +62,15 @@ def mainMenu(screen, clock, windowsdata, WIDTH, HEIGHT):
     }
 
     # Pour chaque bouton, on initialise une variable de progression d'animation à 0 dans un dictionnaire, la taille max de l'image et la vitesse de l'animation
+    hover_state = {button_id: False for button_id in buttons}
     hover_progress = {button_id: 0.0 for button_id in buttons}
     hover_scale_max = 1.08
     hover_anim_speed = 12.0
     dt = 1 / 60
+
+    #Chargement de l'effet sonore de hover:
+    hover_sound = pygame.mixer.Sound("assets/sound/btn_hover.mp3")
+    hover_sound.set_volume(0.3)
 
     while True:
         mouse_pos = pygame.mouse.get_pos()
@@ -55,7 +85,20 @@ def mainMenu(screen, clock, windowsdata, WIDTH, HEIGHT):
 
                 if buttons["play"].collidepoint(mouse_pos):
                     print("Play button clicked")
-                    return 'play'
+                    # On nettoie la fenetre et la mémoire avant de changer de menu
+                    ressources = cleanup(screen, ressources, hover_sound)
+                    print("Lancement du jeu")
+                    return
+
+                if buttons['leaderboard'].collidepoint(mouse_pos):
+                    # On nettoie la fenetre et la mémoire avant de changer de menu
+                    ressources = cleanup(screen, ressources, hover_sound)
+                    leaderboard(screen, clock, windowsdata, WIDTH, HEIGHT)
+                    return
+
+                if buttons['quit'].collidepoint(mouse_pos):
+                    pygame.quit()
+                    sys.exit()
                 
         # Affichage du fond et des boutons
         screen.blit(display_background, (0,0))
@@ -63,16 +106,19 @@ def mainMenu(screen, clock, windowsdata, WIDTH, HEIGHT):
         screen.blit(display_leaderboard_button, (buttons["leaderboard"].x, buttons["leaderboard"].y))
         screen.blit(display_quit_button, (buttons["quit"].x, buttons["quit"].y))
 
-    # Pour chaque bouton, on met à jour la progression de l'animation pour chaque bouton en fonction de si la souris est dessus ou pas
+    # Pour chaque bouton, on met à jour la progression de l'animation pour chaque bouton en fonction de si la souris est dessus ou non
         for button_id, button in buttons.items():
-            if button.collidepoint(mouse_pos):
-                target = 1.0
-            else:
-                target = 0.0
-            hover_progress[button_id] += (target - hover_progress[button_id]) * min(1.0, hover_anim_speed * dt)
+            is_hover = button.collidepoint(mouse_pos)
 
-    # Ensuite, on dessine chaque bouton en appliquant une transformation de mise à l'échelle basée sur la progression de l'animation
-        for button_id, button in buttons.items():
+            # Jouer le son UNIQUEMENT quand on entre sur le bouton
+            if is_hover and not hover_state[button_id]:
+                hover_sound.play()
+
+            hover_state[button_id] = is_hover
+
+            target = 1.0 if is_hover else 0.0
+            hover_progress[button_id] += (target - hover_progress[button_id]) * min(1.0, hover_anim_speed * dt)
+    
             progress = hover_progress[button_id]
             if progress <= 0.001:
                 continue
@@ -88,3 +134,11 @@ def mainMenu(screen, clock, windowsdata, WIDTH, HEIGHT):
 
         pygame.display.flip()
         dt = clock.tick(60) / 1000
+
+def leaderboard(screen, clock, windowsdata, WIDTH, HEIGHT):
+    pygame.display.set_caption("Menu Leaderboard")
+    background = pygame.image.load(r"assets/Menus/Leaderboard/Leaderboard.png").convert()
+    n = pygame.transform.scale(background, (800, 600))
+    screen.blit(n, (0, 0))
+    pygame.display.flip()
+    clock.tick(60)

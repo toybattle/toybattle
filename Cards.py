@@ -20,7 +20,7 @@ def init_cards():
 def host_cards(pioche_host_cards):
     host_cards = []
 
-    for cardindex in range(3):
+    for cardindex in range(8):
         host_cards.append(pioche_host_cards[cardindex - 1])
         pioche_host_cards.remove(pioche_host_cards[cardindex - 1])
 
