@@ -1,6 +1,7 @@
 import pygame
 import sys
 import gc
+from Leaderboard import leaderboard
 
 def cleanup(screen, ressources, hover_sound):
         try:
@@ -134,11 +135,3 @@ def mainMenu(screen, clock, windowsdata, WIDTH, HEIGHT):
 
         pygame.display.flip()
         dt = clock.tick(60) / 1000
-
-def leaderboard(screen, clock, windowsdata, WIDTH, HEIGHT):
-    pygame.display.set_caption("Menu Leaderboard")
-    background = pygame.image.load(r"assets/Menus/Leaderboard/Leaderboard.png").convert()
-    n = pygame.transform.scale(background, (800, 600))
-    screen.blit(n, (0, 0))
-    pygame.display.flip()
-    clock.tick(60)

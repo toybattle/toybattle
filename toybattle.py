@@ -1,3 +1,8 @@
+import os
+
+# Pour les maniacs qui aiment pas le message de pygame :)
+os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
+
 import pygame
 import json
 
