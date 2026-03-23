@@ -7,6 +7,7 @@ import pygame
 import json
 
 from MainMenu import mainMenu
+from Leaderboard import leaderboard
 
 pygame.init()
 
@@ -26,4 +27,14 @@ pygame.display.set_caption("Toybattle")
 # Lancement de la clock
 clock = pygame.time.Clock()
 
-mainMenu(screen, clock, windowsdata, WIDTH, HEIGHT)
+menu = mainMenu(screen, clock, windowsdata, WIDTH, HEIGHT)
+
+# Gestion des redirections entre les menus
+while True:
+    if menu == "mainMenu":
+        menu = mainMenu(screen, clock, windowsdata, WIDTH, HEIGHT)
+    elif menu == "leaderboard":
+        menu = leaderboard(screen, clock, windowsdata, WIDTH, HEIGHT)
+    elif menu == "play":
+        print("Ba mtn faut faire le jeu là")
+        break

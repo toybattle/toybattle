@@ -89,13 +89,12 @@ def mainMenu(screen, clock, windowsdata, WIDTH, HEIGHT):
                     # On nettoie la fenetre et la mémoire avant de changer de menu
                     ressources = cleanup(screen, ressources, hover_sound)
                     print("Lancement du jeu")
-                    return
+                    return 'play'
 
                 if buttons['leaderboard'].collidepoint(mouse_pos):
                     # On nettoie la fenetre et la mémoire avant de changer de menu
                     ressources = cleanup(screen, ressources, hover_sound)
-                    leaderboard(screen, clock, windowsdata, WIDTH, HEIGHT)
-                    return
+                    return 'leaderboard'
 
                 if buttons['quit'].collidepoint(mouse_pos):
                     pygame.quit()
