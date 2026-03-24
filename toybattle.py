@@ -27,9 +27,9 @@ pygame.display.set_caption("Toybattle")
 # Lancement de la clock
 clock = pygame.time.Clock()
 
-def cleanup(screen, ressources, hover_sound):
+def cleanup(screen, ressources, sound):
         try:
-            hover_sound.stop()
+            sound.stop()
         except Exception:
             pass
         for ressource in ressources.keys():

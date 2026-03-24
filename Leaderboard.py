@@ -2,8 +2,12 @@ import pygame
 import sys
 
 def leaderboard(screen, clock, windowsdata, WIDTH, HEIGHT):
-    img = pygame.image.load("assets/Menus/Leaderboard/Leaderboard.png").convert()
-    img = pygame.transform.scale(img, (WIDTH, HEIGHT))
+
+    # Chargement de l'image
+    leaderboard = pygame.image.load("assets/Menus/Leaderboard/Leaderboard.png").convert()
+
+    # Adaptation de la taille de l'image
+    display_leaderboard = pygame.transform.scale(leaderboard, (WIDTH, HEIGHT))
 
     while True:
         for event in pygame.event.get():
@@ -11,12 +15,9 @@ def leaderboard(screen, clock, windowsdata, WIDTH, HEIGHT):
                 pygame.quit()
                 sys.exit()
 
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                return
-
             if event.type == pygame.MOUSEBUTTONDOWN:
                 return
 
-        screen.blit(img, (0, 0))
+        screen.blit(display_leaderboard, (0, 0))
         pygame.display.flip()
         clock.tick(60)
