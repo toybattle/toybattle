@@ -3,7 +3,7 @@ import random
 
 
 def init_cards():
-    datacards = json.load(open("datacards.json", "r"))
+    datacards = json.load(open("data/datacards.json", "r"))
 
     list_cards = []
     for card in datacards:
@@ -20,7 +20,7 @@ def init_cards():
 def host_cards(pioche_host_cards):
     host_cards = []
 
-    for cardindex in range(8):
+    for cardindex in range(3):
         host_cards.append(pioche_host_cards[cardindex - 1])
         pioche_host_cards.remove(pioche_host_cards[cardindex - 1])
 
