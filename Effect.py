@@ -96,55 +96,55 @@ class SystemeParticules:
         for particule in self.particules:
             particule.draw(screen)
 
-def main():
-    # Configuration de l'écran
-    screen = pygame.display.set_mode((LARGEUR, HAUTEUR))
-    pygame.display.set_caption("Effet de particules - Clic pour exploser !")
-    clock = pygame.time.Clock()
+# def main():
+#     # Configuration de l'écran
+#     screen = pygame.display.set_mode((LARGEUR, HAUTEUR))
+#     pygame.display.set_caption("Effet de particules - Clic pour exploser !")
+#     clock = pygame.time.Clock()
     
-    # Création du système de particules
-    systeme_particules = SystemeParticules()
+#     # Création du système de particules
+#     systeme_particules = SystemeParticules()
     
-    # Police pour le texte
-    font = pygame.font.Font(None, 36)
+#     # Police pour le texte
+#     font = pygame.font.Font(None, 36)
     
-    running = True
+#     running = True
     
-    while running:
-        # Gestion des événements
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
+#     while running:
+#         # Gestion des événements
+#         for event in pygame.event.get():
+#             if event.type == pygame.QUIT:
+#                 running = False
             
-            elif event.type == pygame.MOUSEBUTTONDOWN:
-                if event.button == 1:  # Clic gauche
-                    x, y = pygame.mouse.get_pos()
-                    # Crée une explosion à la position du curseur
-                    systeme_particules.create_particles(x, y, nombre=40)
+#             elif event.type == pygame.MOUSEBUTTONDOWN:
+#                 if event.button == 1:  # Clic gauche
+#                     x, y = pygame.mouse.get_pos()
+#                     # Crée une explosion à la position du curseur
+#                     systeme_particules.create_particles(x, y, nombre=40)
         
-        # Mise à jour
-        systeme_particules.update()
+#         # Mise à jour
+#         systeme_particules.update()
         
-        # Dessin
-        screen.fill(NOIR)
+#         # Dessin
+#         screen.fill(NOIR)
         
-        # Dessine le système de particules
-        systeme_particules.draw(screen)
+#         # Dessine le système de particules
+#         systeme_particules.draw(screen)
         
-        # Affiche le nombre de particules
-        texte = font.render(f"Particules: {len(systeme_particules.particules)}", 
-                          True, BLANC)
-        screen.blit(texte, (10, 10))
+#         # Affiche le nombre de particules
+#         texte = font.render(f"Particules: {len(systeme_particules.particules)}", 
+#                           True, BLANC)
+#         screen.blit(texte, (10, 10))
         
-        # Instructions
-        texte_instructions = font.render("Cliquez n'importe où pour une explosion !", 
-                                        True, BLANC)
-        screen.blit(texte_instructions, (10, HAUTEUR - 40))
+#         # Instructions
+#         texte_instructions = font.render("Cliquez n'importe où pour une explosion !", 
+#                                         True, BLANC)
+#         screen.blit(texte_instructions, (10, HAUTEUR - 40))
         
-        pygame.display.flip()
-        clock.tick(FPS)
+#         pygame.display.flip()
+#         clock.tick(FPS)
     
-    pygame.quit()
+#     pygame.quit()
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     main()
