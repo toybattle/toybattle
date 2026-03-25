@@ -1,0 +1,58 @@
+[
+    {
+        "id": 1,
+        "name": "Skully",
+        "image_path": "assets/cards/Skully.png",
+        "strength": 1,
+        "ability_desc": "Piocher 2 cartes"
+    },
+    {
+        "id": 2,
+        "name": "Cap'taine",
+        "image_path": "assets/cards/Captaine.png",
+        "strength": 2,
+        "ability_desc": "Rejouer immédiatement"
+    },
+    {
+        "id": 3,
+        "name": "Mastok",
+        "image_path": "assets/cards/Mastok.png",
+        "strength": 3,
+        "ability_desc": "Détruit une tuile adverse (même si elle est plus forte) et supprime la tuile du dessus uniquement (lien avec la carte en face ou à côté)"
+    },
+    {
+        "id": 4,
+        "name": "Crochet",
+        "image_path": "assets/cards/Crochet.png",
+        "strength": 2,
+        "ability_desc": "Va n'importe où sur la map"
+    },
+    {
+        "id": 5,
+        "name": "XB-42",
+        "image_path": "assets/cards/XB42.png",
+        "strength": 4,
+        "ability_desc": "Supprime une des tuiles adverses"
+    },
+    {
+        "id": 6,
+        "name": "Star",
+        "image_path": "assets/cards/Star.png",
+        "strength": 3,
+        "ability_desc": "Pioche une seule tuile"
+    },
+    {
+        "id": 7,
+        "name": "Roxy",
+        "image_path": "assets/cards/Roxy.png",
+        "strength": 6,
+        "ability_desc": "Pas de pouvoir - Rien ne peut le recouvrir à part le Joker"
+    },
+    {
+        "id": 8,
+        "name": "Kwak",
+        "image_path": "assets/cards/Kwak.png",
+        "strength": 0,
+        "ability_desc": "Pas de force mais recouvre tout et se fait recouvrir par tout"
+    }
+]
