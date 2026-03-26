@@ -2,8 +2,9 @@ import pygame
 import sys
 import json
 import Cards
-import Test.Effect as Effect
+import Effect as Effect
 import random
+from Utils import load_path
 
 # --- INITIALISATION ---
 pygame.init()
@@ -40,11 +41,11 @@ def update_layout():
 
 # --- CHARGEMENT ---
 try:
-    datamap = json.load(open("data/map_data.json", "r"))
+    datamap = json.load(open(load_path("data", "map_data.json"), "r"))
     mapName = list(datamap.keys())[mapIndex]
-    map_img = pygame.image.load(datamap[mapName]["image_path"]).convert()
-    water = pygame.image.load("assets/water.png").convert()
-    pioche = pygame.image.load("assets/pioche.png").convert_alpha()
+    map_img = pygame.image.load(load_path("assets/map", "MapHalloween.jpg")).convert()
+    water = pygame.image.load(load_path("assets", "water.png")).convert()
+    pioche = pygame.image.load(load_path("assets", "pioche.png")).convert_alpha()
 except Exception as e:
     print(f"Erreur Assets: {e}")
     sys.exit()
@@ -153,7 +154,7 @@ class Unit:
         self.card_data = card_data
         self.base_image = None
         try:
-            self.base_image = pygame.image.load(card_data["image_path"]).convert_alpha()
+            self.base_image = pygame.image.load(load_path("assets/cards", card_data["image_path"])).convert_alpha()
         except:
             self.base_image = pygame.Surface((40, 50), pygame.SRCALPHA)
             self.base_image.fill((200, 100, 100))
@@ -269,7 +270,7 @@ while True:
         pygame.draw.rect(screen, slot_color, (cx-5, cy-5, 100, 130), border_radius=8)
 
         try:
-            img = pygame.image.load(card["image_path"]).convert_alpha()
+            img = pygame.image.load(load_path("assets/cards", card["image_path"])).convert_alpha()
             scaled = pygame.transform.scale(img, (90, 120))
             screen.blit(scaled, (cx, cy))
         except:

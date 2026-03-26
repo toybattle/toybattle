@@ -1,7 +1,7 @@
 import json
 import random
-
-datacards = json.load(open("datacards.json", "r"))
+from Utils import load_path
+datacards = json.load(open(load_path("data", "datacards.json"), "r"))
 
 list_cards = []
 for card in datacards:
