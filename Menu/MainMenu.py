@@ -41,10 +41,10 @@ def mainMenu(screen, clock, windowsdata, WIDTH, HEIGHT):
 
     # On mets toutes les textures dans un dictionnaire pour les libérer plus facilement lors du nettoyage
     ressources = {
-        "background": background_orig,
-        "play_button": play_button_orig,
-        "leaderboard_button": leaderboard_button_orig,
-        "quit_button": quit_button_orig,
+        "background_orig": background_orig,
+        "play_button_orig": play_button_orig,
+        "leaderboard_button_orig": leaderboard_button_orig,
+        "quit_button_orig": quit_button_orig,
         "display_background": display_background,
         "display_play_button": display_play_button,
         "display_leaderboard_button": display_leaderboard_button,
