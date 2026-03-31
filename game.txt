@@ -48,3 +48,5 @@ pioche une seul tuile
 pas de pouvori rien ne peux le recouvrir apar le jocker
 Joker 
 Pas de force mais recouvre tous et ce fais recouvrir par tous
+
+Orcale password: Azertyuiop@123456

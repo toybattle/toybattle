@@ -2,3 +2,4 @@ supabase
 pygame
 python-dotenv
 pyinstaller
+flask
