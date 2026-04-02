@@ -84,13 +84,10 @@ def mainMenu(screen, clock, windowsdata, WIDTH, HEIGHT):
                 display_background, display_play_button, display_leaderboard_button, display_quit_button = scale_surfaces(current_width, current_height, buttons)
 
             if event.type == pygame.MOUSEBUTTONDOWN:
-                mouse_pos = pygame.mouse.get_pos()
 
                 if buttons["play"].collidepoint(mouse_pos):
-                    print("Play button clicked")
                     # On nettoie la fenetre et la mémoire avant de changer de menu
                     ressources = cleanup(screen, ressources, hover_sound)
-                    print("Lancement du jeu")
                     return 'play'
 
                 if buttons['leaderboard'].collidepoint(mouse_pos):

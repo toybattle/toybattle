@@ -14,7 +14,7 @@ screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("MENU Editor")
 
 #Charger image originale
-background = load_path("assets/Menus/MainMenu", "MainMenu.jpg")
+background = pygame.image.load(load_path("assets/Menus/Room", "Full.png")).convert()
 img_width, img_height = background.get_size()
 
 #Garder le ratio
@@ -41,8 +41,8 @@ font = pygame.font.SysFont(None, 24)
 
 def save_to_json():
     filename = "../data/windows_data.json"
-    menu_name = "MainMenu"
-    image_path = "../assets/MainMenu.jpg"
+    menu_name = "Room"
+    image_path = "../assets/Menus/Room.png"
 
     # Charger les données existantes si le fichier existe
     if os.path.exists(filename):

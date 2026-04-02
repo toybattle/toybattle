@@ -62,14 +62,14 @@ namespace ToyBatlleLauncher
                 {
                     if (key != null && key.GetValue(keyName) != null)
                     {
-                        key.DeleteSubKey(keyName);
+                        key.DeleteValue(keyName);
                         return true;
                     }
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Erreur lors de la suppersion {ex.Message}");
+                Console.WriteLine($"Erreur lors de la suppression {ex.Message}");
             }
             return false;
         }

@@ -8,6 +8,7 @@ os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
 
 from MainMenu import mainMenu
 from Leaderboard import leaderboard
+from Room import room
 from Utils import load_path
 
 pygame.init()
@@ -42,7 +43,7 @@ while True:
     elif menu == "leaderboard":
         menu = leaderboard(screen, clock, windowsdata, WIDTH, HEIGHT)
     elif menu == "play":
-        print("Ba mtn faut faire le jeu là")
-        break
+        data = room(screen, clock, windowsdata, WIDTH, HEIGHT)
+        menu = data[0]
     else:
         menu = "mainMenu"
