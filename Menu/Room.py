@@ -70,6 +70,7 @@ def room(screen, clock, windowsdata, WIDTH, HEIGHT):
 
     # Url du serveur de jeu
     BASE_URL = "http://127.0.0.1:8000"
+    # BASE_URL = "flask-production-2976.up.railway.app"
 
     # Requête API pour créer une partie
     def create_game():
