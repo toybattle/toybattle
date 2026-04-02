@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-import uuid
+import random
 
 app = Flask(__name__)
 
@@ -18,7 +18,7 @@ def create_game():
 # Créer une partie
 @app.route("/create_game", methods=["POST"])
 def create():
-    game_id = str(uuid.uuid4())
+    game_id = gen_code()
     games[game_id] = create_game()
     return jsonify({"game_id": game_id})
 
@@ -94,3 +94,14 @@ if __name__ == "__main__":
     import os
     port = int(os.environ.get("PORT", 8000))
     app.run(host="0.0.0.0", port=port)
+
+
+def gen_code():
+    code = ""
+    for i in range(4):
+        code = code + str(random.randint(0,9))
+    return code
+
+def map_choice():
+    # return random.randint(0,7)
+    return random.randint(0,1)
