@@ -32,10 +32,9 @@ def test():
 # Créer une partie
 @app.route("/create_game", methods=["POST"])
 def create():
-    game_id = gen_code()
-    map_id = map_choice()
-    games[game_id] = create_game(map_id)
-    return jsonify({"game_id": game_id, "map_id" : map_id})
+    game_id = str(uuid.uuid4())
+    games[game_id] = create_game()
+    return jsonify({"game_id": game_id})
 
 # Rejoindre une partie
 @app.route("/join_game", methods=["POST"])
@@ -109,4 +108,3 @@ if __name__ == "__main__":
     import os
     port = int(os.environ.get("PORT", 8000))
     app.run(host="0.0.0.0", port=port)
-
