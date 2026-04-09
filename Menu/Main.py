@@ -1,4 +1,5 @@
 import os
+import sys
 import gc
 import pygame
 import json
@@ -10,6 +11,10 @@ from MainMenu import mainMenu
 from Leaderboard import leaderboard
 from Room import room
 from Utils import load_path
+
+# On ajoute le dossier Game au path pour les imports
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'Game'))
+from GameMulti import gameMulti
 
 pygame.init()
 
@@ -45,5 +50,9 @@ while True:
     elif menu == "play":
         data = room(screen, clock, windowsdata, WIDTH, HEIGHT)
         menu = data[0]
+        if len(data) > 1:
+            gamedata = data[1]
+    elif menu == "multi":
+        menu = gameMulti(screen, clock, gamedata)
     else:
         menu = "mainMenu"

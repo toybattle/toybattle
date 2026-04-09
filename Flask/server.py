@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 import random
-import random
+import os
 
 app = Flask(__name__)
 
@@ -14,19 +14,20 @@ def gen_code():
     return code
 
 def map_choice():
-    # return random.randint(0,7)
+    # Retourne un index de map (0 ou 1 pour l'instant)
     return random.randint(0,1)
 
 # Structure d'une partie
-def create_game(map_id):
+def create_game_struct(map_id):
     return {
         "players": [],
         "turn": None,
         "state": "waiting",  # waiting / playing / finished
-        "map_id": map_id # exemple: morpion
+        "map_id": map_id,
+        "units": []  # Liste des unités posées: {"tile_id": ..., "card": ..., "player": ...}
     }
 
-@app.route("/test", methods=["POST"])
+@app.route("/test", methods=["GET", "POST"])
 def test():
     return jsonify({"msg": "cc"})
 
@@ -35,42 +36,41 @@ def test():
 def create():
     game_id = gen_code()
     map_id = map_choice()
-    games[game_id] = create_game(map_id)
+    games[game_id] = create_game_struct(map_id)
     return jsonify({"game_id": game_id, "map_id" : map_id})
-    game_id = gen_code()
-    games[game_id] = create_game()
-    return jsonify({"game_id": game_id})
 
 # Rejoindre une partie
 @app.route("/join_game", methods=["POST"])
 def join():
     data = request.json
-    game_id = data["game_id"]
-    player_name = data["player"]
+    game_id = data.get("game_id")
+    player_name = data.get("player")
 
-    if game_id not in games:
+    if not game_id or game_id not in games:
         return jsonify({"error": "Game not found"}), 404
 
     game = games[game_id]
 
-    if len(game["players"]) >= 2:
-        return jsonify({"error": "Game full"}), 400
-
-    game["players"].append(player_name)
+    if player_name not in game["players"]:
+        if len(game["players"]) >= 2:
+            return jsonify({"error": "Game full"}), 400
+        game["players"].append(player_name)
 
     if len(game["players"]) == 2:
         game["state"] = "playing"
-        game["turn"] = game["players"][0]
+        if not game["turn"]:
+            game["turn"] = game["players"][0]
 
     return jsonify({"message": "joined", "game": game})
 
-# Jouer un coup
+# Jouer un coup (poser une carte)
 @app.route("/move", methods=["POST"])
 def move():
     data = request.json
-    game_id = data["game_id"]
-    player = data["player"]
-    position = data["position"]
+    game_id = data.get("game_id")
+    player = data.get("player")
+    tile_id = data.get("tile_id")
+    card_data = data.get("card_data")
 
     if game_id not in games:
         return jsonify({"error": "Game not found"}), 404
@@ -83,11 +83,12 @@ def move():
     if game["turn"] != player:
         return jsonify({"error": "Not your turn"}), 400
 
-    if game["board"][position] != "":
-        return jsonify({"error": "Invalid move"}), 400
-
-    symbol = "X" if game["players"][0] == player else "O"
-    game["board"][position] = symbol
+    # Ajouter l'unité au plateau côté serveur
+    game["units"].append({
+        "tile_id": tile_id,
+        "card": card_data,
+        "player": player
+    })
 
     # Changer de tour
     game["turn"] = (
@@ -98,31 +99,16 @@ def move():
 
     return jsonify({"message": "move played", "game": game})
 
-# Voir l'état du jeu
+# Voir l'état du jeu (Polling)
 @app.route("/state", methods=["GET"])
 def state():
     game_id = request.args.get("game_id")
 
-    if game_id not in games:
+    if not game_id or game_id not in games:
         return jsonify({"error": "Game not found"}), 404
 
     return jsonify(games[game_id])
 
-
 if __name__ == "__main__":
-    import os
     port = int(os.environ.get("PORT", 8000))
     app.run(host="0.0.0.0", port=port)
-
-
-
-
-def gen_code():
-    code = ""
-    for i in range(4):
-        code = code + str(random.randint(0,9))
-    return code
-
-def map_choice():
-    # return random.randint(0,7)
-    return random.randint(0,1)

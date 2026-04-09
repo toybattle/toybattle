@@ -1,6 +1,13 @@
 import pygame
 import sys
+import os
 import requests
+import asyncio
+import time
+from DetectUpdate import wating_for_player
+
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'auth'))
+from db import supabase
 
 from Utils import cleanup, load_path
 
@@ -24,6 +31,33 @@ def room(screen, clock, windowsdata, WIDTH, HEIGHT):
             pygame.transform.scale(server_orig, (btns["server"].width, btns["server"].height)),
             pygame.transform.scale(client_orig, (btns["client"].width, btns["client"].height)),
         )
+    
+    def insert(host, game_id):
+        try:
+            response = (
+                supabase.table("games")
+                .insert([
+                    {"host": host, "client": "WAITING", "room_id": game_id, "status": "WAITING"},
+                ])
+                .execute()
+            )
+            return response
+        except Exception as exception:
+            return exception
+        
+    def update(client, game_id):
+        try:
+            response = (
+                supabase.table("games")
+                .update([
+                    {"client": client, "status": "started"},
+                ])
+                .eq("room_id", game_id)
+                .execute()
+            )
+            return response
+        except Exception as exception:
+            return exception
     
     pygame.display.set_caption("Room")
 
@@ -69,25 +103,35 @@ def room(screen, clock, windowsdata, WIDTH, HEIGHT):
     text = ""
 
     # Url du serveur de jeu
-    BASE_URL = "http://127.0.0.1:8000"
-    # BASE_URL = "flask-production-2976.up.railway.app"
+    # Si le serveur distant ne répond pas (Timeout), utilisez le serveur local :
+    # BASE_URL = "http://127.0.0.1:8000"
+    BASE_URL = "https://flask-production-2976.up.railway.app"
 
     # Requête API pour créer une partie
     def create_game():
-        r = requests.post(f"{BASE_URL}/create_game")
-        data = r.json()
-        print(data)
-        return data["game_id"], data["map_id"]
+        try:
+            # On augmente le timeout à 20s car le serveur Railway peut mettre du temps à démarrer (cold start)
+            r = requests.post(f"{BASE_URL}/create_game", timeout=20)
+            data = r.json()
+            return data.get("game_id"), data.get("map_id")
+        except Exception as e:
+            print(f"Erreur lors de la création de la partie: {e}")
+            return None, None
 
     # Requête API pour rejoindre une partie
     def join_game(game_id, player):
-        r = requests.post(f"{BASE_URL}/join_game", json={
-            "game_id": game_id,
-            "player": player
-        })
-        print(r.json())
+        try:
+            r = requests.post(f"{BASE_URL}/join_game", json={
+                "game_id": game_id,
+                "player": player
+            }, timeout=20)
+            return r.json()
+        except Exception as e:
+            print(f"Erreur lors de l'accès à la partie: {e}")
+            return {"error": str(e)}
 
-    game_id = ""  # Déplacer game_id en dehors de la boucle
+    game_id = ""
+    map_id = None
 
     while True:
         mouse_pos = pygame.mouse.get_pos()
@@ -108,22 +152,40 @@ def room(screen, clock, windowsdata, WIDTH, HEIGHT):
             if event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_pos = pygame.mouse.get_pos()
                 if buttons["server"].collidepoint(mouse_pos):
-                    # On nettoie la fenetre et la mémoire avant de changer de menu
-                    ressources = cleanup(screen, ressources, hover_sound)
-                    game_id, map_id = create_game()
-                    join_game(game_id, "server")
-                    text = game_id  # afficher l'ID dans l'input
-                    gamedata = {'game_id' : game_id, 'role' : 'server', 'map' : map_id}
-                    # return ['play', gamedata]
+                    # Si on n'a pas déjà un code, on en crée un
+                    if not text:
+                        new_game_id, new_map_id = create_game()
+                        if new_game_id:
+                            game_id, map_id = new_game_id, new_map_id
+                            res = join_game(game_id, "server")
+                            text = game_id  # Afficher le code généré dans la zone d'input
+                            print(f"Partie créée avec l'ID: {game_id}")
+                            insert("server", game_id)
+                            if(asyncio.run(wating_for_player(game_id))):
+                                game_info = res.get("game", {})
+                                map_id = game_info.get("map_id", 0)
+                                gamedata = {'game_id' : game_id, 'role' : 'server', 'map' : map_id}
+                                return ['multi', gamedata]
+                            else:
+                                text = "Recherche de joueur expirée"
+                                time.sleep(2)
+                                return ['menu']
+
+                    # On ne retourne plus ici pour rester dans le menu et afficher l'ID
 
                 if buttons['client'].collidepoint(mouse_pos):
-                    # On nettoie la fenetre et la mémoire avant de changer de menu
-                    ressources = cleanup(screen, ressources, hover_sound)
                     if len(text) > 0:
                         game_id = text
-                        join_game(game_id, "client")
-                        gamedata = {'game_id' : game_id, 'role' : 'client', 'map' : map_id}
-                        # return ['play', gamedata]
+                        res = join_game(game_id, "client")
+                        if "error" not in res:
+                            # On récupère les infos de la partie depuis le serveur
+                            game_info = res.get("game", {})
+                            update("client", game_id)
+                            map_id = game_info.get("map_id", 0)
+                            gamedata = {'game_id' : game_id, 'role' : 'client', 'map' : map_id}
+                            return ['multi', gamedata]
+                        else:
+                            print(f"Erreur lors de la connexion: {res.get('error')}")
 
                 if buttons["input"].collidepoint(event.pos):
                     active = not active

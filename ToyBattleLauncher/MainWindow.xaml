@@ -1,0 +1,152 @@
+<Window x:Class="ToyBatlleLauncher.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:ToyBatlleLauncher"
+        mc:Ignorable="d"
+        Title="Launcher Toy Battle" Height="450" Width="800"
+        Icon="assets/icon.ico"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen">
+
+    <Window.Resources>
+        <Style TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="TextBox">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="SelectionBrush" Value="Transparent"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="border" Background="{TemplateBinding Background}">
+                            <ScrollViewer x:Name="PART_ContentHost" Focusable="false" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Window.Background>
+        <ImageBrush ImageSource="assets/sign_in_empty_input.png" Stretch="UniformToFill" x:Name="background_Image"></ImageBrush>
+    </Window.Background>
+
+
+    <Grid>
+        <TextBox HorizontalAlignment="Left" Margin="286,176,0,0" TextWrapping="Wrap" Text="Username" VerticalAlignment="Top" Width="239" Height="27" Background="Transparent" BorderBrush="Transparent"  x:Name="Username_TextBox"/>
+        <TextBox HorizontalAlignment="Left" Margin="286,217,0,0" TextWrapping="Wrap" Text="Email" VerticalAlignment="Top" Width="239" Height="26" Background="Transparent" BorderBrush="Transparent"  x:Name="Email_TextBox"/>
+        <TextBox HorizontalAlignment="Left" Margin="286,254,0,0" TextWrapping="Wrap" Text="Password" VerticalAlignment="Top" Width="240" Height="34" Background="Transparent" BorderBrush="Transparent"  x:Name="Password_TextBox"/>
+        
+        <Button Content="" HorizontalAlignment="Left" Margin="284,293,0,0" VerticalAlignment="Top" Height="52" Width="243" BorderBrush="Transparent" Background="Transparent" Click="Action_Button_Click" x:Name="ActionButton"/>
+        
+        <Button Content="" HorizontalAlignment="Left" Margin="332,353,0,0" VerticalAlignment="Top" Height="37" Width="147" BorderBrush="Transparent" Background="Transparent" Click="Switch_Sign_Up_Button_Click" x:Name="SwitchButton"/>
+
+        <!-- Overlay Modale (Style Premium) -->
+        <Grid x:Name="MainOverlay" Visibility="Collapsed" Background="#CC000000">
+            <Border Background="#2D2D2D" CornerRadius="15" Width="550" MaxHeight="400" VerticalAlignment="Center" HorizontalAlignment="Center" BorderBrush="#444" BorderThickness="1">
+                <Grid Margin="20">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Titre Commun -->
+                    <TextBlock Grid.Row="0" 
+                               x:Name="OverlayTitle"
+                               Text="Launcher Toy Battle" 
+                               Foreground="White"
+                               FontSize="18" 
+                               FontWeight="Bold" 
+                               Margin="0,0,0,20"
+                               HorizontalAlignment="Center"/>
+
+                    <!-- Panel de Confirmation -->
+                    <StackPanel x:Name="ConfirmPanel" Grid.Row="1" Visibility="Collapsed">
+                        <TextBlock x:Name="ConfirmMessage" 
+                                   Text="Voulez-vous effectuer cette action ?" 
+                                   Foreground="#DDD" 
+                                   FontSize="14" 
+                                   TextWrapping="Wrap" 
+                                   TextAlignment="Center"
+                                   Margin="0,0,0,25"/>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <Button x:Name="ConfirmYesButton" Content="Oui" Width="120" Height="35" Margin="0,0,10,0" Style="{x:Null}" Background="#4CAF50" Foreground="White" Click="ConfirmYesButton_Click">
+                                <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="5"/></Style></Button.Resources>
+                            </Button>
+                            <Button x:Name="ConfirmNoButton" Content="Non" Width="120" Height="35" Style="{x:Null}" Background="#F44336" Foreground="White" Click="ConfirmNoButton_Click">
+                                <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="5"/></Style></Button.Resources>
+                            </Button>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Panel de Progression -->
+                    <StackPanel x:Name="ProgressPanel" Grid.Row="1" Visibility="Collapsed">
+                        <ProgressBar x:Name="UpdateProgressBar" 
+                                     Height="25" 
+                                     Minimum="0" 
+                                     Maximum="100" 
+                                     Margin="0,0,0,10"
+                                     Background="#3D3D3D"
+                                     BorderThickness="0"/>
+                        <TextBlock x:Name="UpdateProgressText" 
+                                   Text="0%" 
+                                   Foreground="#AAA"
+                                   HorizontalAlignment="Center"
+                                   FontSize="12"
+                                   Margin="0,0,0,20"/>
+                        <Button x:Name="CancelUpdateButton"
+                                Content="Annuler" 
+                                Style="{x:Null}"
+                                Background="#444"
+                                Foreground="White"
+                                Width="100" 
+                                Height="30"
+                                HorizontalAlignment="Center"
+                                Click="CancelUpdateButton_Click">
+                            <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="5"/></Style></Button.Resources>
+                        </Button>
+                    </StackPanel>
+
+                    <!-- Panel de Résumé / Changelog -->
+                    <StackPanel x:Name="SummaryPanel" Grid.Row="1" Visibility="Collapsed">
+                        <ScrollViewer MaxHeight="200" Margin="0,0,0,20" VerticalScrollBarVisibility="Auto">
+                            <TextBlock x:Name="SummaryText" 
+                                       Text="Résumé des changements ici..." 
+                                       Foreground="#BBB" 
+                                       FontSize="13" 
+                                       TextWrapping="Wrap"/>
+                        </ScrollViewer>
+                        <Button x:Name="SummaryCloseButton"
+                                Content="Fermer" 
+                                Style="{x:Null}"
+                                Background="#2196F3"
+                                Foreground="White"
+                                Width="120" 
+                                Height="35"
+                                HorizontalAlignment="Center"
+                                Click="SummaryCloseButton_Click">
+                            <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="5"/></Style></Button.Resources>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>
