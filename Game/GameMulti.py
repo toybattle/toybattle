@@ -9,8 +9,9 @@ import random
 from Utils import load_path
 
 # Url du serveur (à synchroniser avec Room.py)
-# BASE_URL = "http://127.0.0.1:8000"
-BASE_URL = "https://flask-production-2976.up.railway.app"
+
+# BASE_URL = "https://flask-production-2976.up.railway.app"
+BASE_URL = "https://toybattle.onrender.com"
 
 def gameMulti(screen, clock, gamedata):
     # --- INITIALISATION DES DONNÉES ---

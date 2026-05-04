@@ -31,7 +31,7 @@ async def w(game_id):
     ).subscribe()
 
     try:
-        # Attend jusqu'à 5 secondes ou jusqu'à ce qu'un joueur soit trouvé
+        # Attend jusqu'à 10 secondes ou jusqu'à ce qu'un joueur soit trouvé
         await asyncio.wait_for(player_found.wait(), timeout=10)
         print("Matchmaking réussi")
         return True
@@ -41,15 +41,13 @@ async def w(game_id):
         return False
 
 # Wrapper pour thread
-def wating_for_player(game_id):
-    def run_asyncio():
-        asyncio.run(w(game_id))  # crée un loop propre pour ce thread
-    threading.Thread(target=run_asyncio, daemon=True).start()
+async def wating_for_player(game_id):
+    return await w(game_id)
 
 # Exemple
-wating_for_player(1350)
+# wating_for_player(1350)
 
 
-for i in range(10):
-    print(i)
-    time.sleep(3)
+# for i in range(10):
+#     print(i)
+#     time.sleep(3)

@@ -1,7 +1,8 @@
 import requests
 import time
 
-BASE_URL = "https://flask-production-2976.up.railway.app"
+# BASE_URL = "https://flask-production-2976.up.railway.app"
+BASE_URL = "https://toybattle.onrender.com"
 
 def create_game():
     r = requests.post(f"{BASE_URL}/create_game")

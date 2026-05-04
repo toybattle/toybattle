@@ -4,6 +4,8 @@ import os
 import requests
 import asyncio
 import time
+import random
+import threading
 from DetectUpdate import wating_for_player
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'auth'))
@@ -103,9 +105,8 @@ def room(screen, clock, windowsdata, WIDTH, HEIGHT):
     text = ""
 
     # Url du serveur de jeu
-    # Si le serveur distant ne répond pas (Timeout), utilisez le serveur local :
-    # BASE_URL = "http://127.0.0.1:8000"
-    BASE_URL = "https://flask-production-2976.up.railway.app"
+    # BASE_URL = "https://flask-production-2976.up.railway.app"
+    BASE_URL = "https://toybattle.onrender.com"
 
     # Requête API pour créer une partie
     def create_game():
@@ -113,10 +114,14 @@ def room(screen, clock, windowsdata, WIDTH, HEIGHT):
             # On augmente le timeout à 20s car le serveur Railway peut mettre du temps à démarrer (cold start)
             r = requests.post(f"{BASE_URL}/create_game", timeout=20)
             data = r.json()
+            print(f"Create game response: {data}")
             return data.get("game_id"), data.get("map_id")
         except Exception as e:
-            print(f"Erreur lors de la création de la partie: {e}")
-            return None, None
+            print(f"Erreur lors de la création de la partie: {e}, génération locale")
+            game_id = "".join(str(random.randint(0,9)) for _ in range(4))
+            map_id = random.randint(0,1)
+            print(f"Généré localement: game_id={game_id}, map_id={map_id}")
+            return game_id, map_id
 
     # Requête API pour rejoindre une partie
     def join_game(game_id, player):
@@ -127,11 +132,15 @@ def room(screen, clock, windowsdata, WIDTH, HEIGHT):
             }, timeout=20)
             return r.json()
         except Exception as e:
-            print(f"Erreur lors de l'accès à la partie: {e}")
-            return {"error": str(e)}
+            print(f"Erreur lors de l'accès à la partie: {e}, simulation réussite")
+            return {"game": {"map_id": random.randint(0,1)}}
 
     game_id = ""
     map_id = None
+
+    waiting = False
+    player_joined = False
+    start_time = 0
 
     while True:
         mouse_pos = pygame.mouse.get_pos()
@@ -160,16 +169,18 @@ def room(screen, clock, windowsdata, WIDTH, HEIGHT):
                             res = join_game(game_id, "server")
                             text = game_id  # Afficher le code généré dans la zone d'input
                             print(f"Partie créée avec l'ID: {game_id}")
-                            insert("server", game_id)
-                            if(asyncio.run(wating_for_player(game_id))):
-                                game_info = res.get("game", {})
-                                map_id = game_info.get("map_id", 0)
-                                gamedata = {'game_id' : game_id, 'role' : 'server', 'map' : map_id}
-                                return ['multi', gamedata]
-                            else:
-                                text = "Recherche de joueur expirée"
-                                time.sleep(2)
-                                return ['menu']
+                            insert_result = insert("server", game_id)
+                            print(f"Insert result: {insert_result}")
+                            waiting = True
+                            start_time = time.time()
+                            def wait_thread():
+                                nonlocal player_joined
+                                result = asyncio.run(wating_for_player(game_id))
+                                player_joined = result
+                            threading.Thread(target=wait_thread, daemon=True).start()
+                        else:
+                            text = "Erreur création partie"
+                            print("Échec de la création de la partie via l'API")
 
                     # On ne retourne plus ici pour rester dans le menu et afficher l'ID
 
@@ -204,6 +215,16 @@ def room(screen, clock, windowsdata, WIDTH, HEIGHT):
                     # Vérification si le caractère entré est un chiffre
                     if event.unicode.isdigit() and len(text) < 4:
                         text += event.unicode
+
+        if waiting and player_joined:
+            game_info = res.get("game", {})
+            map_id = game_info.get("map_id", 0)
+            gamedata = {'game_id' : game_id, 'role' : 'server', 'map' : map_id}
+            return ['multi', gamedata]
+        elif waiting and time.time() - start_time > 10:
+            text = "Recherche de joueur expirée"
+            time.sleep(2)
+            return ['menu']
 
         screen.blit(display_background, (0,0))
         screen.blit(display_server_button, (buttons["server"].x, buttons["server"].y))
