@@ -209,7 +209,7 @@ def gameMulti(screen, clock, gamedata):
                         selected_card_index = i
                 
                 # Placement sur la Map (si c'est mon tour)
-                if selected_card_index is not None:
+                if selected_card_index is not None and game_state.get("turn") == my_player_name:
                     with game_state_lock:
                         if game_state.get("turn") == my_player_name:
                             current_card = my_hand[selected_card_index]
@@ -276,7 +276,7 @@ def gameMulti(screen, clock, gamedata):
         turn_text = "C'est votre tour !" if game_state.get("turn") == my_player_name else f"Attente de {game_state.get('turn')}..."
         if game_state.get("state") == "waiting": turn_text = "En attente d'un adversaire..."
         
-        title = ui_font.render(f"Main ({len(my_hand)}) - {turn_text}", True, (230, 230, 240))
+        title = ui_font.render(f"Main ({len(my_hand)} cartes) - Deck: {len(my_deck)}", True, (230, 230, 240))
         screen.blit(title, (20, UI_Y - 26))
 
         # Main du joueur
@@ -298,13 +298,17 @@ def gameMulti(screen, clock, gamedata):
         # Afficher la description de la carte sélectionnée
         if selected_card_index is not None:
             card = my_hand[selected_card_index]
-            desc_font = pygame.font.SysFont(None, 20)
-            desc_text = desc_font.render(card.get("ability_desc", "No description"), True, (230, 230, 240))
-            screen.blit(desc_text, (20, UI_Y + 150))
+            desc_text = ui_font.render(card.get("ability_desc", "No description"), True, (255, 230, 180))
+            screen.blit(desc_text, (20, UI_Y + 100))
 
         # Pioche
         pygame.draw.rect(screen, (20, 20, 25), (MAP_X + MAP_WIDTH + 10, MAP_Y + 290, 120, 150), border_radius=8)
         screen.blit(pioche_img, (MAP_X + MAP_WIDTH + 20, MAP_Y + 300))
+
+        # Info mode selection
+        mode_text = "Séléctionnez une carte pour voir les cases valides"
+        mode_render = ui_font.render(mode_text, True, (210, 210, 220))
+        screen.blit(mode_render, (20, UI_Y + 60))
 
         systeme_particules.update()
         systeme_particules.draw(screen)

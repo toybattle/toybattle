@@ -3,7 +3,7 @@ import random
 from Utils import load_path
 
 def init_cards():
-    datacards = json.load(open(load_path("data", "datacards.json"), "r"))
+    datacards = json.load(open(load_path("data", "datacards.json"), "r", encoding="utf-8"))
 
     list_cards = []
     for card in datacards:
