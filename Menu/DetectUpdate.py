@@ -15,10 +15,11 @@ async def w(game_id):
     player_found = asyncio.Event()
 
     def on_update(payload):
-        new_data = payload.get("new", {})
-        old_data = payload.get("old", {})
-
-        if old_data.get("status", "").lower() == "waiting" and new_data.get("status", "").lower() == "started":
+        print("Change detected:", payload)
+        print(game_id)
+        print(f"Payload data: {payload["data"]["record"]["room_id"]} roomid, {payload["data"]["record"]["status"]} status")
+        
+        if str(payload["data"]["record"]["room_id"]) == str(game_id) and payload["data"]["record"]["status"] == "started":
             print("Joueur trouvé")
             player_found.set()  # signal pour arrêter le timeout
 
@@ -32,7 +33,7 @@ async def w(game_id):
 
     try:
         # Attend jusqu'à 10 secondes ou jusqu'à ce qu'un joueur soit trouvé
-        await asyncio.wait_for(player_found.wait(), timeout=10)
+        await asyncio.wait_for(player_found.wait(), timeout=100)
         print("Matchmaking réussi")
         return True
     except asyncio.TimeoutError:

@@ -6,6 +6,7 @@ import time
 import Cards
 import Effect as Effect
 import random
+import threading
 from Utils import load_path
 
 # Url du serveur (à synchroniser avec Room.py)
@@ -55,7 +56,7 @@ def gameMulti(screen, clock, gamedata):
     try:
         datamap = json.load(open(load_path("data", "map_data.json"), "r"))
         map_name = list(datamap.keys())[map_index]
-        map_img = pygame.image.load(load_path("assets/map", "MapHalloween.jpg")).convert()
+        map_img = pygame.image.load(load_path("assets/map", map_name + ".jpg")).convert()
         water = pygame.image.load(load_path("assets", "water.png")).convert()
         pioche_img = pygame.image.load(load_path("assets", "pioche.png")).convert_alpha()
         pioche_img = pygame.transform.scale(pioche_img, (100, 130))
@@ -77,6 +78,19 @@ def gameMulti(screen, clock, gamedata):
         
     selected_card_index = None
 
+    # Cache des images de cartes
+    card_image_cache = {}
+
+    def get_card_image(card):
+        img_path = card["image_path"]
+        if img_path not in card_image_cache:
+            try:
+                card_image_cache[img_path] = pygame.image.load(load_path("assets/cards", img_path)).convert_alpha()
+            except:
+                card_image_cache[img_path] = pygame.Surface((90, 120), pygame.SRCALPHA)
+                card_image_cache[img_path].fill((80, 80, 80))
+        return card_image_cache[img_path]
+
     # --- EFFETS ---
     systeme_particules = Effect.SystemeParticules()
 
@@ -88,15 +102,20 @@ def gameMulti(screen, clock, gamedata):
     }
     last_poll_time = 0
     poll_interval = 1.0 # 1 seconde entre chaque check
+    polling_thread = None
+    game_state_lock = threading.Lock()
 
     def poll_server():
         nonlocal game_state
-        try:
-            r = requests.get(f"{BASE_URL}/state", params={"game_id": game_id}, timeout=2)
-            if r.status_code == 200:
-                game_state = r.json()
-        except:
-            pass
+        while True:
+            try:
+                r = requests.get(f"{BASE_URL}/state", params={"game_id": game_id}, timeout=2)
+                if r.status_code == 200:
+                    with game_state_lock:
+                        game_state.update(r.json())
+            except:
+                pass
+            time.sleep(poll_interval)
 
     def send_move(tile_id, card_data):
         try:
@@ -108,6 +127,10 @@ def gameMulti(screen, clock, gamedata):
             }, timeout=2)
         except:
             pass
+
+    # Start polling thread
+    polling_thread = threading.Thread(target=poll_server, daemon=True)
+    polling_thread.start()
 
     # --- LOGIQUE DE PLACEMENT ---
 
@@ -122,11 +145,7 @@ def gameMulti(screen, clock, gamedata):
             self.tile_id = tile_id
             self.card_data = card_data
             self.owner = owner
-            try:
-                self.base_image = pygame.image.load(load_path("assets/cards", card_data["image_path"])).convert_alpha()
-            except:
-                self.base_image = pygame.Surface((40, 50), pygame.SRCALPHA)
-                self.base_image.fill((200, 100, 100))
+            self.image = get_card_image(card_data)
 
         def draw(self, surf):
             self.x, self.y = get_screen_pos(self.tile_id)
@@ -140,7 +159,7 @@ def gameMulti(screen, clock, gamedata):
             else:
                 width, height = 60, 80
 
-            image = pygame.transform.scale(self.base_image, (width, height))
+            image = pygame.transform.scale(self.image, (width, height))
             rect = image.get_rect(center=(self.x, self.y))
             surf.blit(image, rect)
 
@@ -170,9 +189,7 @@ def gameMulti(screen, clock, gamedata):
     # --- BOUCLE PRINCIPALE ---
     while True:
         current_time = time.time()
-        if current_time - last_poll_time > poll_interval:
-            poll_server()
-            last_poll_time = current_time
+        # Polling is now in background thread
 
         screen.fill((30, 30, 35))
         mouse_pos = pygame.mouse.get_pos()
@@ -192,9 +209,11 @@ def gameMulti(screen, clock, gamedata):
                         selected_card_index = i
                 
                 # Placement sur la Map (si c'est mon tour)
-                if selected_card_index is not None and game_state.get("turn") == my_player_name:
-                    current_card = my_hand[selected_card_index]
-                    valid_ids = get_valid_tiles(game_state.get("units", []), current_card)
+                if selected_card_index is not None:
+                    with game_state_lock:
+                        if game_state.get("turn") == my_player_name:
+                            current_card = my_hand[selected_card_index]
+                            valid_ids = get_valid_tiles(game_state.get("units", []), current_card)
                     
                     for tile in datamap[map_name]["tiles"]:
                         tr = pygame.Rect(MAP_X + tile["x"]*MAP_WIDTH, MAP_Y + tile["y"]*MAP_HEIGHT, 
@@ -211,9 +230,14 @@ def gameMulti(screen, clock, gamedata):
                             my_hand.pop(selected_card_index)
                             selected_card_index = None
                             
-                            # On force un poll immédiat pour voir le changement de tour
-                            poll_server()
-                            break
+                            # Forcer un poll immédiat pour voir le changement
+                            try:
+                                r = requests.get(f"{BASE_URL}/state", params={"game_id": game_id}, timeout=1)
+                                if r.status_code == 200:
+                                    with game_state_lock:
+                                        game_state.update(r.json())
+                            except:
+                                pass
 
                 # Click sur la pioche
                 pioche_rect = pygame.Rect(MAP_X + MAP_WIDTH + 20, MAP_Y + 300, 100, 130)
@@ -263,13 +287,20 @@ def gameMulti(screen, clock, gamedata):
             slot_color = (34, 34, 40) if not is_selected else (40, 50, 70)
             pygame.draw.rect(screen, slot_color, (cx-5, cy-5, 100, 130), border_radius=8)
             try:
-                img = pygame.image.load(load_path("assets/cards", card["image_path"])).convert_alpha()
+                img = get_card_image(card)
                 scaled = pygame.transform.scale(img, (90, 120))
                 screen.blit(scaled, (cx, cy))
             except:
                 pygame.draw.rect(screen, (80, 80, 80), (cx, cy, 90, 120), border_radius=8)
             if is_selected:
                 pygame.draw.rect(screen, (255, 215, 0), (cx-5, cy-5, 100, 130), 3, border_radius=8)
+
+        # Afficher la description de la carte sélectionnée
+        if selected_card_index is not None:
+            card = my_hand[selected_card_index]
+            desc_font = pygame.font.SysFont(None, 20)
+            desc_text = desc_font.render(card.get("ability_desc", "No description"), True, (230, 230, 240))
+            screen.blit(desc_text, (20, UI_Y + 150))
 
         # Pioche
         pygame.draw.rect(screen, (20, 20, 25), (MAP_X + MAP_WIDTH + 10, MAP_Y + 290, 120, 150), border_radius=8)

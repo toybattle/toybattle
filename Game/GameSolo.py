@@ -13,7 +13,7 @@ WIDTH = min(1100, max(800, info.current_w - 120))
 HEIGHT = min(900, max(650, info.current_h - 120))
 screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE)
 pygame.display.set_caption("Toy Battle")
-mapIndex = 1
+mapIndex = 0
 
 # --- LAYOUT DYNAMIQUE ---
 UI_Y = HEIGHT - 150
@@ -43,7 +43,8 @@ def update_layout():
 try:
     datamap = json.load(open(load_path("data", "map_data.json"), "r"))
     mapName = list(datamap.keys())[mapIndex]
-    map_img = pygame.image.load(load_path("assets/map", "MapHalloween.jpg")).convert()
+    print(mapName)
+    map_img = pygame.image.load(load_path("assets/map", mapName + ".jpg")).convert()
     water = pygame.image.load(load_path("assets", "water.png")).convert()
     pioche = pygame.image.load(load_path("assets", "pioche.png")).convert_alpha()
 except Exception as e:

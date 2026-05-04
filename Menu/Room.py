@@ -172,10 +172,12 @@ def room(screen, clock, windowsdata, WIDTH, HEIGHT):
                             insert_result = insert("server", game_id)
                             print(f"Insert result: {insert_result}")
                             waiting = True
+                            print(waiting)
                             start_time = time.time()
                             def wait_thread():
                                 nonlocal player_joined
                                 result = asyncio.run(wating_for_player(game_id))
+                                print(f"Résultat du matchmaking: {result}")
                                 player_joined = result
                             threading.Thread(target=wait_thread, daemon=True).start()
                         else:
@@ -221,7 +223,7 @@ def room(screen, clock, windowsdata, WIDTH, HEIGHT):
             map_id = game_info.get("map_id", 0)
             gamedata = {'game_id' : game_id, 'role' : 'server', 'map' : map_id}
             return ['multi', gamedata]
-        elif waiting and time.time() - start_time > 10:
+        elif waiting and time.time() - start_time > 100:
             text = "Recherche de joueur expirée"
             time.sleep(2)
             return ['menu']

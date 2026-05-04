@@ -1,8 +1,13 @@
 from flask import Flask, request, jsonify
 import random
 import os
+import json
 
 app = Flask(__name__)
+
+# Charger les données de la map
+with open("data/map_data.json", "r") as f:
+    map_data = json.load(f)
 
 # Stockage des parties
 games = {}
@@ -84,20 +89,81 @@ def move():
         return jsonify({"error": "Not your turn"}), 400
 
     # Ajouter l'unité au plateau côté serveur
-    game["units"].append({
+    new_unit = {
         "tile_id": tile_id,
         "card": card_data,
         "player": player
-    })
+    }
+    game["units"].append(new_unit)
 
-    # Changer de tour
-    game["turn"] = (
-        game["players"][1]
-        if game["turn"] == game["players"][0]
-        else game["players"][0]
-    )
+    # Résoudre les batailles pour la nouvelle unité
+    resolve_battles(game, new_unit)
+
+    # Appliquer les effets de la carte
+    change_turn = apply_card_effects(game, new_unit)
+
+    # Changer de tour si nécessaire
+    if change_turn:
+        game["turn"] = (
+            game["players"][1]
+            if game["turn"] == game["players"][0]
+            else game["players"][0]
+        )
 
     return jsonify({"message": "move played", "game": game})
+
+def resolve_battles(game, new_unit):
+    map_name = list(map_data.keys())[game["map_id"]]
+    links = map_data[map_name]["links"]
+    
+    # Trouver les unités adjacentes
+    adjacent_tiles = set()
+    for link in links:
+        if link[0] == new_unit["tile_id"]:
+            adjacent_tiles.add(link[1])
+        elif link[1] == new_unit["tile_id"]:
+            adjacent_tiles.add(link[0])
+    
+    # Vérifier les batailles
+    units_to_remove = []
+    for unit in game["units"]:
+        if unit["tile_id"] in adjacent_tiles and unit["player"] != new_unit["player"]:
+            # Bataille: si force supérieure, manger
+            if new_unit["card"]["strength"] > unit["card"]["strength"]:
+                units_to_remove.append(unit)
+    
+    # Supprimer les unités mangées
+    for unit in units_to_remove:
+        game["units"].remove(unit)
+
+def apply_card_effects(game, new_unit):
+    card_name = new_unit["card"]["name"]
+    change_turn = True
+    if card_name == "Mastok":
+        # Détruit une tuile adverse adjacente
+        map_name = list(map_data.keys())[game["map_id"]]
+        links = map_data[map_name]["links"]
+        adjacent_tiles = set()
+        for link in links:
+            if link[0] == new_unit["tile_id"]:
+                adjacent_tiles.add(link[1])
+            elif link[1] == new_unit["tile_id"]:
+                adjacent_tiles.add(link[0])
+        for unit in game["units"]:
+            if unit["tile_id"] in adjacent_tiles and unit["player"] != new_unit["player"]:
+                game["units"].remove(unit)
+                break  # Supprime une seule
+    elif card_name == "XB-42":
+        # Supprime une des tuiles adverses (choisir la première)
+        for unit in game["units"]:
+            if unit["player"] != new_unit["player"]:
+                game["units"].remove(unit)
+                break
+    elif card_name == "Cap'taine":
+        # Rejouer immédiatement
+        change_turn = False
+    # Autres effets peuvent être ajoutés ici
+    return change_turn
 
 # Voir l'état du jeu (Polling)
 @app.route("/state", methods=["GET"])
