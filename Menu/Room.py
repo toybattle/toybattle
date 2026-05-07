@@ -32,6 +32,7 @@ def room(screen, clock, windowsdata, WIDTH, HEIGHT):
             pygame.transform.scale(background_orig, (w, h)),
             pygame.transform.scale(server_orig, (btns["server"].width, btns["server"].height)),
             pygame.transform.scale(client_orig, (btns["client"].width, btns["client"].height)),
+            pygame.transform.scale(solo_orig, (btns["solo"].width, btns["solo"].height)),
         )
     
     def insert(host, game_id):
@@ -70,10 +71,11 @@ def room(screen, clock, windowsdata, WIDTH, HEIGHT):
     background_orig = pygame.image.load(load_path("assets/Menus/Room", "Room.png")).convert()
     server_orig = pygame.image.load(load_path("assets/Menus/Room", "Server.png")).convert_alpha()
     client_orig = pygame.image.load(load_path("assets/Menus/Room", "Client.png")).convert_alpha()
+    solo_orig = pygame.image.load(load_path("assets/Menus/Room", "Solo.png")).convert_alpha()
 
     current_width, current_height = WIDTH, HEIGHT
     buttons = compute_buttons(current_width, current_height)
-    display_background, display_server_button, display_client_button = scale_surfaces(current_width, current_height, buttons)
+    display_background, display_server_button, display_client_button, display_solo_button = scale_surfaces(current_width, current_height, buttons)
 
     ressources = {
         "background_orig": background_orig,
@@ -82,12 +84,14 @@ def room(screen, clock, windowsdata, WIDTH, HEIGHT):
 
         "background": display_background,
         "server": display_server_button,
-        "client": display_client_button
+        "client": display_client_button,
+        "solo": display_solo_button
     }
 
     buttons_textures = {
         "server": display_server_button,
-        "client": display_client_button
+        "client": display_client_button,
+        "solo": display_solo_button
     }
 
     hover_state = {button_id: False for button_id in buttons}
@@ -200,6 +204,9 @@ def room(screen, clock, windowsdata, WIDTH, HEIGHT):
                         else:
                             print(f"Erreur lors de la connexion: {res.get('error')}")
 
+                if buttons['solo'].collidepoint(mouse_pos):
+                    return ['solo']
+
                 if buttons["input"].collidepoint(event.pos):
                     active = not active
                 else:
@@ -231,6 +238,7 @@ def room(screen, clock, windowsdata, WIDTH, HEIGHT):
         screen.blit(display_background, (0,0))
         screen.blit(display_server_button, (buttons["server"].x, buttons["server"].y))
         screen.blit(display_client_button, (buttons["client"].x, buttons["client"].y))
+        screen.blit(display_solo_button, (buttons["solo"].x, buttons["solo"].y))
 
         # Créer une surface temporaire pour l'input (transparente)
         input_surf = pygame.Surface((input_box.w, input_box.h), pygame.SRCALPHA)

@@ -15,6 +15,7 @@ from Utils import load_path
 # On ajoute le dossier Game au path pour les imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'Game'))
 from GameMulti import gameMulti
+from GameSolo import gameSolo
 
 pygame.init()
 
@@ -54,5 +55,7 @@ while True:
             gamedata = data[1]
     elif menu == "multi":
         menu = gameMulti(screen, clock, gamedata)
+    elif menu == "solo":
+        menu = gameSolo(screen, clock)
     else:
         menu = "mainMenu"

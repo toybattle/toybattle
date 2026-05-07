@@ -77,6 +77,8 @@ def gameMulti(screen, clock, gamedata):
         my_deck = deck_client
         
     selected_card_index = None
+    selecting_target = False
+    victory_start = None
 
     # Cache des images de cartes
     card_image_cache = {}
@@ -98,12 +100,14 @@ def gameMulti(screen, clock, gamedata):
     game_state = {
         "turn": None,
         "units": [],
-        "state": "waiting"
+        "state": "waiting",
+        "winner": None
     }
     last_poll_time = 0
     poll_interval = 1.0 # 1 seconde entre chaque check
     polling_thread = None
     game_state_lock = threading.Lock()
+    victory_start = None
 
     def poll_server():
         nonlocal game_state
@@ -140,6 +144,50 @@ def gameMulti(screen, clock, gamedata):
         ty = MAP_Y + int((tile["y"] + tile["h"]/2) * MAP_HEIGHT)
         return tx, ty
 
+    def can_cover(new_card, occupying_card):
+        if occupying_card is None:
+            return True
+        occupying_name = occupying_card.get("name", "")
+        new_name = new_card.get("name", "")
+        # Kwak recouvre absolument tout, y compris Roxy
+        if "Kwak" in new_name:
+            return True
+        # Roxy reste invincible contre toutes les autres
+        if "Roxy" in occupying_name:
+            return False
+        # Autres comparaisons (force)
+        new_strength = new_card.get("strength", 0)
+        occupying_strength = occupying_card.get("strength", 0)
+        return new_strength > occupying_strength
+
+    def execute_ability(card, active_units, hand, deck):
+        desc = card.get("ability_desc", "")
+        enemy_player = "client" if my_role == "server" else "server"
+        if "Piocher 2 cartes" in desc:
+            for _ in range(2):
+                if deck:
+                    hand.append(deck.pop(0))
+        elif "Rejouer immédiatement" in desc:
+            pass  # Already allows selecting again
+        elif "Détruit une tuile adverse" in desc:
+            # Destroy an enemy tile - handled by server
+            # enemy_units = [u for u in active_units if u["player"] == enemy_player]
+            # if enemy_units:
+            #     to_remove = random.choice(enemy_units)
+            #     active_units.remove(to_remove)
+            # And remove top card from hand
+            if hand:
+                hand.pop(0)
+        elif "Supprime une des tuiles adverses" in desc:
+            # enemy_units = [u for u in active_units if u["player"] == enemy_player]
+            # if enemy_units:
+            #     to_remove = random.choice(enemy_units)
+            #     active_units.remove(to_remove)
+            pass  # handled by server
+        elif "Pioche une seule tuile" in desc:
+            if deck:
+                hand.append(deck.pop(0))
+
     class Unit:
         def __init__(self, tile_id, card_data, owner):
             self.tile_id = tile_id
@@ -165,6 +213,7 @@ def gameMulti(screen, clock, gamedata):
 
     def get_valid_tiles(units, card):
         occupied_ids = [u["tile_id"] for u in units]
+        unit_on_tile = {u["tile_id"]: u for u in units}
         valid_ids = set()
         
         # Le joueur 1 (server) part d'un coté, joueur 2 (client) de l'autre
@@ -181,10 +230,30 @@ def gameMulti(screen, clock, gamedata):
                     if link[0] == u["tile_id"]: valid_ids.add(link[1])
                     elif link[1] == u["tile_id"]: valid_ids.add(link[0])
         
-        # Filtre: on ne peut pas poser sur une case déjà occupée par soi-même
-        # (Pour simplifier, on enlève toutes les cases occupées pour l'instant)
-        final_valid = [tid for tid in valid_ids if tid not in occupied_ids]
-        return final_valid
+        standard_valid = valid_ids.copy()
+        
+        # Adjust based on card
+        if "Crochet" in card.get("name", ""):
+            # Can be placed anywhere but not on occupied tiles, even if this power is higher than the occupying one
+            valid_ids = set(t["id"] for t in datamap[map_name]["tiles"])
+        elif "Kwak" in card.get("name", ""):
+            # Can be placed on standard valid, even occupied
+            valid_ids = standard_valid
+        else:
+            # Standard: only empty
+            valid_ids = standard_valid
+        
+        # Filter for occupied
+        final_valid = set()
+        for tid in valid_ids:
+            if tid not in occupied_ids:
+                final_valid.add(tid)
+            else:
+                if "Crochet" not in card.get("name", ""):
+                    occupying = unit_on_tile[tid]["card"]
+                    if can_cover(card, occupying):
+                        final_valid.add(tid)
+        return list(final_valid)
 
     # --- BOUCLE PRINCIPALE ---
     while True:
@@ -193,6 +262,7 @@ def gameMulti(screen, clock, gamedata):
 
         screen.fill((30, 30, 35))
         mouse_pos = pygame.mouse.get_pos()
+        ui_font = pygame.font.SysFont(None, 24)
         
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -202,6 +272,8 @@ def gameMulti(screen, clock, gamedata):
                 map_surface = update_layout(event.w, event.h, map_img)
 
             if event.type == pygame.MOUSEBUTTONDOWN:
+                if game_state.get("state") == "finished":
+                    continue
                 # Sélection de carte dans la main
                 for i in range(len(my_hand)):
                     rect = pygame.Rect(WIDTH//2 - 150 + i*110, UI_Y + 20, 90, 120)
@@ -228,6 +300,10 @@ def gameMulti(screen, clock, gamedata):
                             systeme_particules.create_particles(x, y, nombre=40)
                             
                             my_hand.pop(selected_card_index)
+                            if "Détruit une tuile adverse" in current_card.get("ability_desc", "") or "Supprime une des tuiles adverses" in current_card.get("ability_desc", ""):
+                                selecting_target = True
+                            else:
+                                execute_ability(current_card, game_state.get("units", []), my_hand, my_deck)
                             selected_card_index = None
                             
                             # Forcer un poll immédiat pour voir le changement
@@ -245,8 +321,41 @@ def gameMulti(screen, clock, gamedata):
                     if my_deck:
                         my_hand.append(my_deck.pop(0))
 
+                # Sélection de cible pour destruction
+                if selecting_target:
+                    for u_data in game_state.get("units", []):
+                        if u_data["player"] != my_player_name:
+                            x, y = get_screen_pos(u_data["tile_id"])
+                            rect = pygame.Rect(x - 30, y - 40, 60, 80)
+                            if rect.collidepoint(mouse_pos):
+                                # Détruire l'unité
+                                with game_state_lock:
+                                    if u_data in game_state["units"]:
+                                        game_state["units"].remove(u_data)
+                                # Coût : retirer une carte de la main
+                                if my_hand:
+                                    my_hand.pop(0)
+                                selecting_target = False
+                                break
+
         # --- DESSIN ---
         screen.blit(map_surface, (MAP_X, MAP_Y))
+
+        # Si la partie est finie, afficher le résultat et revenir au menu
+        if game_state.get("state") == "finished":
+            if victory_start is None:
+                victory_start = current_time
+                selected_card_index = None
+                selecting_target = False
+            winner = game_state.get("winner")
+            if winner == my_player_name:
+                result_text = "Victoire !"
+            else:
+                result_text = "Défaite..."
+            result_render = ui_font.render(result_text, True, (255, 220, 120))
+            screen.blit(result_render, (WIDTH//2 - result_render.get_width()//2, UI_Y - 80))
+            if current_time - victory_start > 3:
+                return "mainMenu"
 
         # Surbrillance des cases valides
         if selected_card_index is not None and game_state.get("turn") == my_player_name:

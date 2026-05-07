@@ -28,9 +28,19 @@ def create_game_struct(map_id):
         "players": [],
         "turn": None,
         "state": "waiting",  # waiting / playing / finished
+        "winner": None,
         "map_id": map_id,
         "units": []  # Liste des unités posées: {"tile_id": ..., "card": ..., "player": ...}
     }
+
+
+def is_victory_tile(game, unit):
+    map_name = list(map_data.keys())[game["map_id"]]
+    enemy_fort_type = "forteressePlayer2" if unit["player"] == "server" else "forteressePlayer1"
+    for tile in map_data[map_name]["tiles"]:
+        if tile["id"] == unit["tile_id"] and tile.get("type") == enemy_fort_type:
+            return True
+    return False
 
 @app.route("/test", methods=["GET", "POST"])
 def test():
@@ -102,8 +112,11 @@ def move():
     # Appliquer les effets de la carte
     change_turn = apply_card_effects(game, new_unit)
 
-    # Changer de tour si nécessaire
-    if change_turn:
+    # Vérifier la condition de victoire par forteresse ennemie
+    if is_victory_tile(game, new_unit):
+        game["state"] = "finished"
+        game["winner"] = player
+    elif change_turn:
         game["turn"] = (
             game["players"][1]
             if game["turn"] == game["players"][0]

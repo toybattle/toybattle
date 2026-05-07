@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ToyBatlleLauncher")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+a6977bef11b566cd5f0ee95b23a1ae64a9a279d0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+f67742cf0c8ac18fe1663808f594b5ca51e42944")]
 [assembly: System.Reflection.AssemblyProductAttribute("ToyBatlleLauncher")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ToyBatlleLauncher")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

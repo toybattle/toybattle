@@ -44,10 +44,18 @@ MODES = {
 class MapEditor:
     """Éditeur interactif de cartes pour ToyBattle"""
 
-    def __init__(self, img_path=None):
+    def __init__(self, img_path):
         """Initialise l'éditeur avec une image de fond"""
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
         pygame.display.set_caption("ToyBattle Map Editor")
+        
+        # Chargement et préparation de l'image
+        self.img_path = img_path
+        self.original_bg = self._load_image(img_path)
+        self.map_name = os.path.basename(img_path).split('.')[0]
+        
+        # Calcul des dimensions du canvas
+        self._setup_canvas()
         
         # État de l'éditeur
         self.tiles = []
@@ -56,68 +64,10 @@ class MapEditor:
         self.selected_tile_id = None
         self.temp_start_pos = None
         self.tile_counter = 0
-        self.current_map_name = None
-        self.img_path = None
-        self.original_bg = None
-        self.display_bg = None
-        self.canvas_w = 0
-        self.canvas_h = 0
-        self.offset_x = 0
-        self.offset_y = 0
         
         # Polices
         self.font = pygame.font.SysFont("Arial", 18)
         self.title_font = pygame.font.SysFont("Arial", 22, bold=True)
-        
-        # Charger la map si un chemin est fourni
-        if img_path:
-            self.load_map(img_path)
-
-    def load_map(self, img_path):
-        """Charge une carte depuis un chemin d'image"""
-        self.img_path = img_path
-        self.original_bg = self._load_image(img_path)
-        self.map_name = os.path.basename(img_path).split('.')[0]
-        
-        # Calcul des dimensions du canvas
-        self._setup_canvas()
-        
-        # Charger les données existantes de cette carte
-        self.load_existing_data()
-        
-        print(f"✓ Carte chargée: {self.map_name}")
-
-    def load_existing_data(self):
-        """Charge les données existantes de la carte depuis map_data.json"""
-        if os.path.exists("map_data.json"):
-            try:
-                with open("map_data.json", "r") as f:
-                    all_maps = json.load(f)
-                
-                if self.map_name in all_maps:
-                    map_data = all_maps[self.map_name]
-                    self.tiles = map_data.get("tiles", [])
-                    self.links = map_data.get("links", [])
-                    
-                    # Mettre à jour le compteur d'IDs
-                    if self.tiles:
-                        self.tile_counter = max(tile['id'] for tile in self.tiles) + 1
-                    else:
-                        self.tile_counter = 0
-                    
-                    print(f"✓ Données chargées: {len(self.tiles)} tuiles, {len(self.links)} liens")
-                else:
-                    print(f"ℹ Aucune donnée existante pour {self.map_name}")
-                    self.tiles = []
-                    self.links = []
-                    self.tile_counter = 0
-            except (json.JSONDecodeError, IOError) as e:
-                print(f"⚠ Erreur de chargement: {e}")
-                self.tiles = []
-                self.links = []
-                self.tile_counter = 0
-        else:
-            print("ℹ Aucun fichier de données trouvé")
 
     def _load_image(self, img_path):
         """Charge l'image de fond avec gestion d'erreur"""
@@ -129,7 +79,7 @@ class MapEditor:
             return image
         except FileNotFoundError as e:
             print(f"✗ ERREUR: {e}")
-            return None
+            sys.exit(1)
 
     def _setup_canvas(self):
         """Configure les dimensions et position du canvas"""
@@ -174,10 +124,6 @@ class MapEditor:
 
     def save(self):
         """Sauvegarde la carte en JSON en conservant les autres cartes"""
-        if not self.img_path:
-            print("✗ Aucune carte chargée à sauvegarder")
-            return
-            
         # Charger les données existantes si le fichier existe
         all_maps = {}
         if os.path.exists("map_data.json"):
@@ -199,110 +145,14 @@ class MapEditor:
             json.dump(all_maps, f, indent=4)
         print(f"✓ Carte '{self.map_name}' sauvegardée: map_data.json ({len(self.tiles)} tuiles, {len(self.links)} liens)")
 
-    def load_map_from_json(self):
-        """Affiche une interface pour charger une carte existante"""
-        if not os.path.exists("map_data.json"):
-            print("✗ Aucun fichier map_data.json trouvé")
-            return False
-        
-        try:
-            with open("map_data.json", "r") as f:
-                all_maps = json.load(f)
-            
-            if not all_maps:
-                print("✗ Aucune carte disponible")
-                return False
-            
-            # Créer une liste des cartes disponibles
-            map_list = list(all_maps.keys())
-            
-            # Interface simple de sélection
-            print("\n--- Cartes disponibles ---")
-            for i, map_name in enumerate(map_list):
-                map_data = all_maps[map_name]
-                print(f"{i+1}. {map_name} ({len(map_data.get('tiles', []))} tuiles)")
-            
-            # Demander le choix à l'utilisateur
-            while True:
-                try:
-                    choice = input("\nSélectionnez une carte (1-{}) ou 'q' pour quitter: ".format(len(map_list)))
-                    if choice.lower() == 'q':
-                        return False
-                    
-                    choice_idx = int(choice) - 1
-                    if 0 <= choice_idx < len(map_list):
-                        selected_map = map_list[choice_idx]
-                        map_data = all_maps[selected_map]
-                        
-                        # Charger la carte sélectionnée
-                        self.load_map(map_data['image_path'])
-                        return True
-                    else:
-                        print("Choix invalide")
-                except ValueError:
-                    print("Entrée invalide")
-        except Exception as e:
-            print(f"✗ Erreur lors du chargement: {e}")
-            return False
-
     def run(self):
         """Boucle principale"""
         clock = pygame.time.Clock()
         while True:
             self.handle_events()
-            if self.original_bg:  # Ne dessine que si une carte est chargée
-                self.draw()
-            else:
-                self._draw_no_map_screen()
+            self.draw()
             pygame.display.flip()
             clock.tick(60)
-
-    def _draw_no_map_screen(self):
-        """Affiche un écran quand aucune carte n'est chargée"""
-        self.screen.fill(COLORS["dark_gray"])
-        text1 = self.title_font.render("AUCUNE CARTE CHARGÉE", True, COLORS["white"])
-        text2 = self.font.render("Utilisez le bouton LOAD pour charger une carte", True, COLORS["gray"])
-        text3 = self.font.render("ou modifiez le code pour charger une carte au démarrage", True, COLORS["gray"])
-        
-        self.screen.blit(text1, (WIDTH//2 - text1.get_width()//2, HEIGHT//2 - 50))
-        self.screen.blit(text2, (WIDTH//2 - text2.get_width()//2, HEIGHT//2))
-        self.screen.blit(text3, (WIDTH//2 - text3.get_width()//2, HEIGHT//2 + 30))
-        
-        # Dessiner l'UI minimale
-        self._draw_minimal_ui()
-
-    def _draw_minimal_ui(self):
-        """Dessine une UI minimale pour le chargement"""
-        # Fond du panneau
-        pygame.draw.rect(self.screen, COLORS["dark_blue"], (0, 0, UI_WIDTH, HEIGHT))
-        
-        # Titre
-        title = self.title_font.render("TOY BATTLE EDITOR", True, COLORS["white"])
-        self.screen.blit(title, (20, 30))
-        
-        # Bouton Load
-        load_rect = pygame.Rect(20, 100, UI_WIDTH - 40, 50)
-        pygame.draw.rect(self.screen, COLORS["blue"], load_rect, border_radius=5)
-        text = self.font.render("LOAD MAP", True, COLORS["white"])
-        text_rect = text.get_rect(center=load_rect.center)
-        self.screen.blit(text, text_rect)
-        
-        # Informations
-        info_y = 200
-        info_texts = [
-            "Aucune carte chargée",
-            "",
-            "Pour charger une carte:",
-            "1. Cliquez sur LOAD MAP",
-            "2. Sélectionnez dans la console",
-            "",
-            "Ou modifiez le code:",
-            "MapEditor('chemin/image.jpg')"
-        ]
-        
-        for i, txt in enumerate(info_texts):
-            info = self.font.render(txt, True, COLORS["gray"])
-            self.screen.blit(info, (20, info_y + i * 25))
 
     def handle_events(self):
         """Traite les événements"""
@@ -314,18 +164,12 @@ class MapEditor:
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.pos[0] < UI_WIDTH:
                     self._on_ui_click(event.pos)
-                elif self.original_bg:  # Seulement si une carte est chargée
+                else:
                     self._on_map_click(event.pos)
 
     def _on_ui_click(self, ui_pos):
         """Gère les clics sur l'interface utilisateur"""
         y = ui_pos[1]
-        
-        if not self.original_bg:
-            # UI minimale pour le chargement
-            if 100 <= y <= 150:  # Bouton Load
-                self.load_map_from_json()
-            return
         
         # Sélection du mode
         if 100 <= y <= 140:
@@ -337,19 +181,11 @@ class MapEditor:
         elif 250 <= y <= 290:
             self.current_mode = MODES["start_p2"]
         elif 300 <= y <= 340:
-            self.current_mode = MODES["forteresse_p1"]
-        elif 350 <= y <= 390:
-            self.current_mode = MODES["forteresse_p2"]
-        elif 400 <= y <= 440:
             self.current_mode = MODES["delete"]
         
         # Bouton Sauvegarder
-        elif HEIGHT - 100 <= y <= HEIGHT - 50:
+        elif HEIGHT - 70 <= y <= HEIGHT - 20:
             self.save()
-        
-        # Bouton Load
-        elif HEIGHT - 50 <= y <= HEIGHT:
-            self.load_map_from_json()
 
     def _on_map_click(self, screen_pos):
         """Gère les clics sur la carte"""
@@ -358,8 +194,7 @@ class MapEditor:
         if not self._is_valid_map_coords(map_x, map_y):
             return
 
-        if self.current_mode in [MODES["tile"], MODES["start_p1"], MODES["start_p2"], 
-                                 MODES["forteresse_p1"], MODES["forteresse_p2"]]:
+        if self.current_mode == MODES["tile"] or self.current_mode == MODES["start_p1"] or self.current_mode == MODES["start_p2"]:
             self._handle_tile_creation(map_x, map_y)
         elif self.current_mode == MODES["link"]:
             self._handle_link_creation(screen_pos)
@@ -374,6 +209,7 @@ class MapEditor:
             x1, y1 = self.temp_start_pos
             
             # Déterminer le type de tuile
+            tile_type = "normal"
             if self.current_mode == MODES["start_p1"]:
                 tile_type = "start"
                 tile_player = "player1"
@@ -381,13 +217,12 @@ class MapEditor:
                 tile_type = "start"
                 tile_player = "player2"
             elif self.current_mode == MODES["forteresse_p1"]:
-                tile_type = "forteresse"
+                tile_type = "forteressePlayer1"
                 tile_player = "player1"
             elif self.current_mode == MODES["forteresse_p2"]:
-                tile_type = "forteresse"
+                tile_type = "forteressePlayer2"
                 tile_player = "player2"
             else:
-                tile_type = "normal"
                 tile_player = None
             
             new_tile = {
@@ -399,7 +234,7 @@ class MapEditor:
                 "type": tile_type,
             }
             
-            # Ajouter le joueur si c'est un start ou une forteresse
+            # Ajouter le joueur si c'est un start
             if tile_player:
                 new_tile["player"] = tile_player
             
@@ -446,11 +281,6 @@ class MapEditor:
         # Titre
         title = self.title_font.render("TOY BATTLE EDITOR", True, COLORS["white"])
         self.screen.blit(title, (20, 30))
-        
-        # Infos carte
-        if self.current_map_name:
-            map_info = self.font.render(f"Map: {self.current_map_name}", True, COLORS["cyan"])
-            self.screen.blit(map_info, (20, 65))
 
         # Boutons des modes
         modes_list = [
@@ -468,9 +298,6 @@ class MapEditor:
 
         # Bouton Sauvegarder
         self._draw_save_button()
-        
-        # Bouton Load
-        self._draw_load_button()
 
     def _draw_mode_button(self, index, mode, label, color):
         """Dessine un bouton de mode"""
@@ -487,27 +314,15 @@ class MapEditor:
 
     def _draw_save_button(self):
         """Dessine le bouton sauvegarder"""
-        button_rect = pygame.Rect(20, HEIGHT - 100, UI_WIDTH - 40, 40)
+        button_rect = pygame.Rect(20, HEIGHT - 70, UI_WIDTH - 40, 50)
         pygame.draw.rect(self.screen, COLORS["light_green"], button_rect, border_radius=5)
         
         text = self.font.render("SAVE JSON", True, COLORS["black"])
         text_rect = text.get_rect(center=button_rect.center)
         self.screen.blit(text, text_rect)
-    
-    def _draw_load_button(self):
-        """Dessine le bouton charger"""
-        button_rect = pygame.Rect(20, HEIGHT - 50, UI_WIDTH - 40, 40)
-        pygame.draw.rect(self.screen, COLORS["blue"], button_rect, border_radius=5)
-        
-        text = self.font.render("LOAD MAP", True, COLORS["white"])
-        text_rect = text.get_rect(center=button_rect.center)
-        self.screen.blit(text, text_rect)
 
     def _draw_map(self):
         """Dessine la zone de la carte"""
-        if not self.display_bg:
-            return
-            
         # Ombre portée
         pygame.draw.rect(
             self.screen, COLORS["black"],
@@ -561,28 +376,18 @@ class MapEditor:
                     color = COLORS["cyan"]
                 else:
                     color = COLORS["orange"]  # Par défaut
-            elif tile['type'] == 'forteresse':
-                # Distinguer les forteresses par joueur
-                if tile.get('player') == 'player1':
-                    color = COLORS["red"]
-                elif tile.get('player') == 'player2':
-                    color = COLORS["blue"]
-                else:
-                    color = COLORS["red"]  # Par défaut
             else:
                 color = COLORS["green"]
 
             pygame.draw.rect(self.screen, color, (screen_x, screen_y, screen_w, screen_h), 2)
             
             # ID et type de la tuile
+            tile_label = str(tile['id'])
+            
+            # Ajouter le numéro du joueur pour les starts
             if tile['type'] == 'start' and tile.get('player'):
                 player_num = "P1" if tile['player'] == 'player1' else "P2"
-                tile_label = f"S{tile['id']}({player_num})"
-            elif tile['type'] == 'forteresse' and tile.get('player'):
-                player_num = "P1" if tile['player'] == 'player1' else "P2"
-                tile_label = f"F{tile['id']}({player_num})"
-            else:
-                tile_label = str(tile['id'])
+                tile_label = f"{tile['id']} ({player_num})"
             
             tile_id_text = self.font.render(tile_label, True, color)
             self.screen.blit(tile_id_text, (screen_x + 2, screen_y + 2))
@@ -592,8 +397,7 @@ class MapEditor:
         if not self.temp_start_pos:
             return
 
-        if self.current_mode not in [MODES["tile"], MODES["start_p1"], MODES["start_p2"],
-                                     MODES["forteresse_p1"], MODES["forteresse_p2"]]:
+        if self.current_mode not in [MODES["tile"], MODES["start_p1"], MODES["start_p2"]]:
             return
 
         map_x, map_y = self.screen_to_map(pygame.mouse.get_pos())
@@ -607,11 +411,8 @@ class MapEditor:
         pygame.draw.rect(self.screen, COLORS["white"], (screen_x, screen_y, screen_w, screen_h), 1)
 
 
+
 if __name__ == "__main__":
-    # Lance l'éditeur avec une carte (optionnel)
-    # Décommentez la ligne suivante pour charger une carte au démarrage:
-    # map_editor = MapEditor("C:\\Users\\louis\\Documents\\Toybattle\\toybattle\\assets\\map\\MapGlace.jpg")
-    
-    # Ou lancez sans carte pour utiliser le bouton LOAD
-    map_editor = MapEditor()  # Sans carte au démarrage
+    # Lance l'éditeur avec une carte
+    map_editor = MapEditor("C:\\Users\\louis\\Documents\\Toybattle\\toybattle\\assets\\map\\MapGlace.jpg") 
     map_editor.run()
