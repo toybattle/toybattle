@@ -36,9 +36,9 @@ def create_game_struct(map_id):
 
 def is_victory_tile(game, unit):
     map_name = list(map_data.keys())[game["map_id"]]
-    enemy_fort_type = "forteressePlayer2" if unit["player"] == "server" else "forteressePlayer1"
+    enemy_player = "player2" if unit["player"] == "server" else "player1"
     for tile in map_data[map_name]["tiles"]:
-        if tile["id"] == unit["tile_id"] and tile.get("type") == enemy_fort_type:
+        if tile["id"] == unit["tile_id"] and tile.get("type") == "forteresse" and tile.get("player") == enemy_player:
             return True
     return False
 

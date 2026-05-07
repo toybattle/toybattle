@@ -2,6 +2,7 @@ import pygame
 import sys
 import json
 import os
+from Utils import load_path
 
 # ============================================================================
 # CONFIGURATION
@@ -76,8 +77,8 @@ class MapEditor:
     def load_map(self, img_path):
         """Charge une carte depuis un chemin d'image"""
         self.img_path = img_path
-        self.original_bg = self._load_image(img_path)
         self.map_name = os.path.basename(img_path).split('.')[0]
+        self.original_bg = self._load_image(load_path("assets/map", self.map_name + ".jpg"))
         
         # Calcul des dimensions du canvas
         self._setup_canvas()
@@ -89,9 +90,9 @@ class MapEditor:
 
     def load_existing_data(self):
         """Charge les données existantes de la carte depuis map_data.json"""
-        if os.path.exists("map_data.json"):
+        if os.path.exists(load_path("data", "map_data.json")):
             try:
-                with open("map_data.json", "r") as f:
+                with open(load_path("data", "map_data.json"), "r") as f:
                     all_maps = json.load(f)
                 
                 if self.map_name in all_maps:
@@ -180,9 +181,9 @@ class MapEditor:
             
         # Charger les données existantes si le fichier existe
         all_maps = {}
-        if os.path.exists("map_data.json"):
+        if os.path.exists(load_path("data", "map_data.json")):
             try:
-                with open("map_data.json", "r") as f:
+                with open(load_path("data", "map_data.json"), "r") as f:
                     all_maps = json.load(f)
             except (json.JSONDecodeError, IOError):
                 all_maps = {}
@@ -195,18 +196,18 @@ class MapEditor:
         }
         
         # Sauvegarder toutes les cartes
-        with open("map_data.json", "w") as f:
+        with open(load_path("data", "map_data.json"), "w") as f:
             json.dump(all_maps, f, indent=4)
         print(f"✓ Carte '{self.map_name}' sauvegardée: map_data.json ({len(self.tiles)} tuiles, {len(self.links)} liens)")
 
     def load_map_from_json(self):
         """Affiche une interface pour charger une carte existante"""
-        if not os.path.exists("map_data.json"):
+        if not os.path.exists(load_path("data", "map_data.json")):
             print("✗ Aucun fichier map_data.json trouvé")
             return False
         
         try:
-            with open("map_data.json", "r") as f:
+            with open(load_path("data", "map_data.json"), "r") as f:
                 all_maps = json.load(f)
             
             if not all_maps:
@@ -260,15 +261,6 @@ class MapEditor:
     def _draw_no_map_screen(self):
         """Affiche un écran quand aucune carte n'est chargée"""
         self.screen.fill(COLORS["dark_gray"])
-        text1 = self.title_font.render("AUCUNE CARTE CHARGÉE", True, COLORS["white"])
-        text2 = self.font.render("Utilisez le bouton LOAD pour charger une carte", True, COLORS["gray"])
-        text3 = self.font.render("ou modifiez le code pour charger une carte au démarrage", True, COLORS["gray"])
-        
-        self.screen.blit(text1, (WIDTH//2 - text1.get_width()//2, HEIGHT//2 - 50))
-        self.screen.blit(text2, (WIDTH//2 - text2.get_width()//2, HEIGHT//2))
-        self.screen.blit(text3, (WIDTH//2 - text3.get_width()//2, HEIGHT//2 + 30))
-        
-        # Dessiner l'UI minimale
         self._draw_minimal_ui()
 
     def _draw_minimal_ui(self):
@@ -286,23 +278,6 @@ class MapEditor:
         text = self.font.render("LOAD MAP", True, COLORS["white"])
         text_rect = text.get_rect(center=load_rect.center)
         self.screen.blit(text, text_rect)
-        
-        # Informations
-        info_y = 200
-        info_texts = [
-            "Aucune carte chargée",
-            "",
-            "Pour charger une carte:",
-            "1. Cliquez sur LOAD MAP",
-            "2. Sélectionnez dans la console",
-            "",
-            "Ou modifiez le code:",
-            "MapEditor('chemin/image.jpg')"
-        ]
-        
-        for i, txt in enumerate(info_texts):
-            info = self.font.render(txt, True, COLORS["gray"])
-            self.screen.blit(info, (20, info_y + i * 25))
 
     def handle_events(self):
         """Traite les événements"""
