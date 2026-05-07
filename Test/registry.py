@@ -36,9 +36,22 @@ if __name__ == "__main__":
     value_data = "JohnDoe"
 
     # Save data
-    save_to_registry(registry_path, value_name, value_data)
+    # save_to_registry(registry_path, value_name, value_data)
 
-    # Read data
-    retrieved_value = read_from_registry(registry_path, value_name)
-    if retrieved_value is not None:
-        print(f"Retrieved from registry: {retrieved_value}")
+    # # Read data
+    # retrieved_value = read_from_registry(registry_path, value_name)
+    # if retrieved_value is not None:
+    #     print(f"Retrieved from registry: {retrieved_value}")
+    
+    try:
+        with winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER,
+            r"Software\ToyBattle"
+        ) as key:
+
+            username, _ = winreg.QueryValueEx(key, "username")
+            print(username)
+
+    except FileNotFoundError:
+        print("Clé ou valeur introuvable")
+

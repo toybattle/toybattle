@@ -5,9 +5,12 @@ import requests
 import time
 import Cards
 import Effect as Effect
-import random
+import os
 import threading
 from Utils import load_path
+
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'auth'))
+from db import supabase
 
 # Url du serveur (à synchroniser avec Room.py)
 
@@ -19,6 +22,7 @@ def gameMulti(screen, clock, gamedata):
     WIDTH, HEIGHT = screen.get_size()
     game_id = gamedata.get('game_id')
     my_role = gamedata.get('role') # 'server' ou 'client'
+    my_name = gamedata.get('name')
     map_index = gamedata.get('map', 0)
     
     # On définit quel joueur on est pour le serveur (joueur 1 ou 2)
@@ -348,7 +352,23 @@ def gameMulti(screen, clock, gamedata):
                 selected_card_index = None
                 selecting_target = False
             winner = game_state.get("winner")
+            
+            print(f"Game finished! Winner: {winner}, I am: {my_player_name}")
+            
+            #update room in db to set winner          
             if winner == my_player_name:
+                try:
+                    response = (
+                        supabase.table("games")
+                        .update([
+                            {"win": my_name},
+                        ])
+                        .eq("room_id", game_id)
+                        .execute()
+                    )
+                    print(response)
+                except Exception as exception:
+                    print(exception)
                 result_text = "Victoire !"
             else:
                 result_text = "Défaite..."

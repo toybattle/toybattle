@@ -6,6 +6,7 @@ import asyncio
 import time
 import random
 import threading
+import winreg
 from DetectUpdate import wating_for_player
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'auth'))
@@ -34,6 +35,20 @@ def room(screen, clock, windowsdata, WIDTH, HEIGHT):
             pygame.transform.scale(client_orig, (btns["client"].width, btns["client"].height)),
             pygame.transform.scale(solo_orig, (btns["solo"].width, btns["solo"].height)),
         )
+    
+    def get_username():
+        try:
+            with winreg.OpenKey(
+                winreg.HKEY_CURRENT_USER,
+                r"Software\ToyBattle"
+            ) as key:
+
+                username, _ = winreg.QueryValueEx(key, "username")
+                return username
+
+        except FileNotFoundError:
+            return "Unknown"
+
     
     def insert(host, game_id):
         try:
@@ -173,10 +188,9 @@ def room(screen, clock, windowsdata, WIDTH, HEIGHT):
                             res = join_game(game_id, "server")
                             text = game_id  # Afficher le code généré dans la zone d'input
                             print(f"Partie créée avec l'ID: {game_id}")
-                            insert_result = insert("server", game_id)
+                            insert_result = insert(get_username(), game_id)
                             print(f"Insert result: {insert_result}")
                             waiting = True
-                            print(waiting)
                             start_time = time.time()
                             def wait_thread():
                                 nonlocal player_joined
@@ -190,16 +204,16 @@ def room(screen, clock, windowsdata, WIDTH, HEIGHT):
 
                     # On ne retourne plus ici pour rester dans le menu et afficher l'ID
 
-                if buttons['client'].collidepoint(mouse_pos):
+                if buttons['client'].collidepoint(mouse_pos) and not waiting:
                     if len(text) > 0:
                         game_id = text
                         res = join_game(game_id, "client")
                         if "error" not in res:
                             # On récupère les infos de la partie depuis le serveur
                             game_info = res.get("game", {})
-                            update("client", game_id)
+                            update(get_username(), game_id)
                             map_id = game_info.get("map_id", 0)
-                            gamedata = {'game_id' : game_id, 'role' : 'client', 'map' : map_id}
+                            gamedata = {'game_id' : game_id, 'role' : 'client', 'map' : map_id, 'name': get_username()}
                             return ['multi', gamedata]
                         else:
                             print(f"Erreur lors de la connexion: {res.get('error')}")
@@ -228,7 +242,7 @@ def room(screen, clock, windowsdata, WIDTH, HEIGHT):
         if waiting and player_joined:
             game_info = res.get("game", {})
             map_id = game_info.get("map_id", 0)
-            gamedata = {'game_id' : game_id, 'role' : 'server', 'map' : map_id}
+            gamedata = {'game_id' : game_id, 'role' : 'server', 'map' : map_id, 'name': get_username()}
             return ['multi', gamedata]
         elif waiting and time.time() - start_time > 100:
             text = "Recherche de joueur expirée"
