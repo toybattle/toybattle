@@ -218,10 +218,49 @@ def gameMulti(screen, clock, gamedata):
     def get_valid_tiles(units, card):
         occupied_ids = [u["tile_id"] for u in units]
         unit_on_tile = {u["tile_id"]: u for u in units}
+        tile_by_id = {t["id"]: t for t in datamap[map_name]["tiles"]}
+        tile_graph = {t["id"]: set() for t in datamap[map_name]["tiles"]}
+        for link in datamap[map_name]["links"]:
+            tile_graph[link[0]].add(link[1])
+            tile_graph[link[1]].add(link[0])
         valid_ids = set()
         
         # Le joueur 1 (server) part d'un coté, joueur 2 (client) de l'autre
         player_side = "player1" if my_role == "server" else "player2"
+
+        def is_own_fortress(tile_id):
+            tile = tile_by_id.get(tile_id)
+            return bool(tile and tile.get("type") == "forteresse" and tile.get("player") == player_side)
+
+        def has_path_to_tile(target_tile_id):
+            own_tiles = {u["tile_id"] for u in units if u["player"] == my_player_name}
+            start_tiles = {
+                t["id"]
+                for t in datamap[map_name]["tiles"]
+                if t["type"] == "start" and t.get("player") == player_side and t["id"] in own_tiles
+            }
+            if not start_tiles:
+                return False
+
+            visited = set(start_tiles)
+            queue = list(start_tiles)
+            while queue:
+                current = queue.pop(0)
+                for neighbor in tile_graph.get(current, set()):
+                    if neighbor == target_tile_id:
+                        return True
+                    if neighbor in own_tiles and neighbor not in visited:
+                        visited.add(neighbor)
+                        queue.append(neighbor)
+            return False
+
+        def can_place_on_tile(tid):
+            if is_own_fortress(tid):
+                return False
+            tile = tile_by_id.get(tid)
+            if tile and tile.get("type") == "forteresse" and tile.get("player") != player_side:
+                return has_path_to_tile(tid)
+            return True
         
         for tile in datamap[map_name]["tiles"]:
             if tile["type"] == "start" and tile["player"] == player_side:
@@ -231,15 +270,19 @@ def gameMulti(screen, clock, gamedata):
         for u in units:
             if u["player"] == my_player_name:
                 for link in datamap[map_name]["links"]:
-                    if link[0] == u["tile_id"]: valid_ids.add(link[1])
-                    elif link[1] == u["tile_id"]: valid_ids.add(link[0])
+                    if link[0] == u["tile_id"]:
+                        if not is_own_fortress(link[1]):
+                            valid_ids.add(link[1])
+                    elif link[1] == u["tile_id"]:
+                        if not is_own_fortress(link[0]):
+                            valid_ids.add(link[0])
         
-        standard_valid = valid_ids.copy()
+        standard_valid = set(tid for tid in valid_ids if not is_own_fortress(tid))
         
         # Adjust based on card
         if "Crochet" in card.get("name", ""):
             # Can be placed anywhere but not on occupied tiles, even if this power is higher than the occupying one
-            valid_ids = set(t["id"] for t in datamap[map_name]["tiles"])
+            valid_ids = set(t["id"] for t in datamap[map_name]["tiles"] if not is_own_fortress(t["id"]))
         elif "Kwak" in card.get("name", ""):
             # Can be placed on standard valid, even occupied
             valid_ids = standard_valid
@@ -250,6 +293,8 @@ def gameMulti(screen, clock, gamedata):
         # Filter for occupied
         final_valid = set()
         for tid in valid_ids:
+            if not can_place_on_tile(tid):
+                continue
             if tid not in occupied_ids:
                 final_valid.add(tid)
             else:
@@ -406,7 +451,9 @@ def gameMulti(screen, clock, gamedata):
         if game_state.get("state") == "waiting": turn_text = "En attente d'un adversaire..."
         
         title = ui_font.render(f"Main ({len(my_hand)} cartes) - Deck: {len(my_deck)}", True, (230, 230, 240))
+        turn = ui_font.render(turn_text, True, (210, 210, 220))
         screen.blit(title, (20, UI_Y - 26))
+        screen.blit(turn, (20, UI_Y - 26 + title.get_height()))
 
         # Main du joueur
         for i, card in enumerate(my_hand):
@@ -433,11 +480,6 @@ def gameMulti(screen, clock, gamedata):
         # Pioche
         pygame.draw.rect(screen, (20, 20, 25), (MAP_X + MAP_WIDTH + 10, MAP_Y + 290, 120, 150), border_radius=8)
         screen.blit(pioche_img, (MAP_X + MAP_WIDTH + 20, MAP_Y + 300))
-
-        # Info mode selection
-        mode_text = "Séléctionnez une carte pour voir les cases valides"
-        mode_render = ui_font.render(mode_text, True, (210, 210, 220))
-        screen.blit(mode_render, (20, UI_Y + 60))
 
         systeme_particules.update()
         systeme_particules.draw(screen)

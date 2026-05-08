@@ -34,12 +34,46 @@ def create_game_struct(map_id):
     }
 
 
+def get_player_side(player):
+    return "player1" if player == "server" else "player2"
+
+
 def is_victory_tile(game, unit):
     map_name = list(map_data.keys())[game["map_id"]]
     enemy_player = "player2" if unit["player"] == "server" else "player1"
     for tile in map_data[map_name]["tiles"]:
         if tile["id"] == unit["tile_id"] and tile.get("type") == "forteresse" and tile.get("player") == enemy_player:
             return True
+    return False
+
+
+def has_path_to_enemy_fortress(game, target_tile_id, player):
+    map_name = list(map_data.keys())[game["map_id"]]
+    player_side = get_player_side(player)
+    owned_tiles = {u["tile_id"] for u in game["units"] if u["player"] == player}
+    start_tiles = {
+        t["id"]
+        for t in map_data[map_name]["tiles"]
+        if t["type"] == "start" and t.get("player") == player_side and t["id"] in owned_tiles
+    }
+    if not start_tiles:
+        return False
+
+    graph = {t["id"]: set() for t in map_data[map_name]["tiles"]}
+    for link in map_data[map_name]["links"]:
+        graph[link[0]].add(link[1])
+        graph[link[1]].add(link[0])
+
+    visited = set(start_tiles)
+    queue = list(start_tiles)
+    while queue:
+        current = queue.pop(0)
+        for neighbor in graph.get(current, set()):
+            if neighbor == target_tile_id:
+                return True
+            if neighbor in owned_tiles and neighbor not in visited:
+                visited.add(neighbor)
+                queue.append(neighbor)
     return False
 
 @app.route("/test", methods=["GET", "POST"])
@@ -113,7 +147,7 @@ def move():
     change_turn = apply_card_effects(game, new_unit)
 
     # Vérifier la condition de victoire par forteresse ennemie
-    if is_victory_tile(game, new_unit):
+    if is_victory_tile(game, new_unit) and has_path_to_enemy_fortress(game, new_unit["tile_id"], player):
         game["state"] = "finished"
         game["winner"] = player
     elif change_turn:
