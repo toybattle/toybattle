@@ -84,6 +84,9 @@ def gameMulti(screen, clock, gamedata):
     selecting_target = False
     victory_start = None
 
+    can_play_extra = False
+    destroy_cost = False
+
     # Cache des images de cartes
     card_image_cache = {}
 
@@ -165,32 +168,19 @@ def gameMulti(screen, clock, gamedata):
         return new_strength > occupying_strength
 
     def execute_ability(card, active_units, hand, deck):
+        global selecting_target, destroy_cost
         desc = card.get("ability_desc", "")
-        enemy_player = "client" if my_role == "server" else "server"
         if "Piocher 2 cartes" in desc:
             for _ in range(2):
                 if deck:
                     hand.append(deck.pop(0))
-        elif "Rejouer immédiatement" in desc:
-            pass  # Already allows selecting again
-        elif "Détruit une tuile adverse" in desc:
-            # Destroy an enemy tile - handled by server
-            # enemy_units = [u for u in active_units if u["player"] == enemy_player]
-            # if enemy_units:
-            #     to_remove = random.choice(enemy_units)
-            #     active_units.remove(to_remove)
-            # And remove top card from hand
-            if hand:
-                hand.pop(0)
-        elif "Supprime une des tuiles adverses" in desc:
-            # enemy_units = [u for u in active_units if u["player"] == enemy_player]
-            # if enemy_units:
-            #     to_remove = random.choice(enemy_units)
-            #     active_units.remove(to_remove)
-            pass  # handled by server
         elif "Pioche une seule tuile" in desc:
             if deck:
                 hand.append(deck.pop(0))
+        elif "Détruit une tuile adverse" in desc or "Supprime une des tuiles adverses" in desc:
+            selecting_target = True
+            if "supprime la tuile du dessus" in desc:
+                destroy_cost = True
 
     class Unit:
         def __init__(self, tile_id, card_data, owner):
@@ -214,6 +204,10 @@ def gameMulti(screen, clock, gamedata):
             image = pygame.transform.scale(self.image, (width, height))
             rect = image.get_rect(center=(self.x, self.y))
             surf.blit(image, rect)
+
+            if self.owner == my_player_name:
+                outline_rect = rect.inflate(8, 8)
+                pygame.draw.rect(surf, (255, 215, 0), outline_rect, 3, border_radius=10)
 
     def get_valid_tiles(units, card):
         occupied_ids = [u["tile_id"] for u in units]
@@ -348,12 +342,16 @@ def gameMulti(screen, clock, gamedata):
                             x, y = get_screen_pos(tile["id"])
                             systeme_particules.create_particles(x, y, nombre=40)
                             
-                            my_hand.pop(selected_card_index)
-                            if "Détruit une tuile adverse" in current_card.get("ability_desc", "") or "Supprime une des tuiles adverses" in current_card.get("ability_desc", ""):
-                                selecting_target = True
+                            card_desc = current_card.get("ability_desc", "")
+                            if can_play_extra:
+                                my_hand.pop(selected_card_index)
+                                can_play_extra = False
                             else:
-                                execute_ability(current_card, game_state.get("units", []), my_hand, my_deck)
+                                my_hand.pop(selected_card_index)
+                                if "Rejouer immédiatement" in card_desc:
+                                    can_play_extra = True
                             selected_card_index = None
+                            execute_ability(current_card, game_state.get("units", []), my_hand, my_deck)
                             
                             # Forcer un poll immédiat pour voir le changement
                             try:
@@ -382,8 +380,10 @@ def gameMulti(screen, clock, gamedata):
                                     if u_data in game_state["units"]:
                                         game_state["units"].remove(u_data)
                                 # Coût : retirer une carte de la main
-                                if my_hand:
-                                    my_hand.pop(0)
+                                if destroy_cost:
+                                    if my_hand:
+                                        my_hand.pop(0)
+                                    destroy_cost = False
                                 selecting_target = False
                                 break
 
@@ -419,7 +419,7 @@ def gameMulti(screen, clock, gamedata):
                 result_text = "Défaite..."
             result_render = ui_font.render(result_text, True, (255, 220, 120))
             screen.blit(result_render, (WIDTH//2 - result_render.get_width()//2, UI_Y - 80))
-            if current_time - victory_start > 3:
+            if current_time - victory_start > 5:
                 return "mainMenu"
 
         # Surbrillance des cases valides
