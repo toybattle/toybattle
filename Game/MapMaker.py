@@ -8,9 +8,9 @@ from Utils import load_path
 # CONFIGURATION
 # ============================================================================
 
-# Dimensions de la fenêtre
-WIDTH, HEIGHT = 1000, 600
-UI_WIDTH = 250
+# Dimensions de la fenêtre (Agrandies pour ne pas superposer l'UI)
+WIDTH, HEIGHT = 1200, 800
+UI_WIDTH = 280
 pygame.init()
 
 # Palette de couleurs
@@ -28,6 +28,8 @@ COLORS = {
     "dark_bg": (60, 60, 70),
     "light_green": (100, 200, 100),
     "cyan": (0, 200, 200),
+    "purple": (180, 100, 255),
+    "violet": (200, 130, 200),
 }
 
 # Modes d'édition
@@ -39,8 +41,8 @@ MODES = {
     "forteresse_p1": "FORTERESSE_P1",
     "forteresse_p2": "FORTERESSE_P2",
     "delete": "DELETE",
+    "star": "STAR",          # Nouveau mode étoile
 }
-
 
 class MapEditor:
     """Éditeur interactif de cartes pour ToyBattle"""
@@ -49,10 +51,11 @@ class MapEditor:
         """Initialise l'éditeur avec une image de fond"""
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
         pygame.display.set_caption("ToyBattle Map Editor")
-        
+
         # État de l'éditeur
         self.tiles = []
         self.links = []
+        self.star_zones = []               # Liste des zones d'étoiles
         self.current_mode = MODES["tile"]
         self.selected_tile_id = None
         self.temp_start_pos = None
@@ -65,11 +68,19 @@ class MapEditor:
         self.canvas_h = 0
         self.offset_x = 0
         self.offset_y = 0
-        
+
+        # Dictionnaire pour stocker les zones cliquables de l'UI
+        self.ui_rects = {}
+
+        # Variables pour le mode étoile
+        self.selected_star_tiles = set()    # IDs des tuiles sélectionnées pour la nouvelle zone
+        self.star_area_start = None         # Premier coin du rectangle de la zone de spawn
+        self.star_drawing = False           # True si en train de dessiner le rectangle
+
         # Polices
         self.font = pygame.font.SysFont("Arial", 18)
         self.title_font = pygame.font.SysFont("Arial", 22, bold=True)
-        
+
         # Charger la map si un chemin est fourni
         if img_path:
             self.load_map(img_path)
@@ -79,14 +90,11 @@ class MapEditor:
         self.img_path = img_path
         self.map_name = os.path.basename(img_path).split('.')[0]
         self.original_bg = self._load_image(load_path("assets/map", self.map_name + ".jpg"))
-        
-        # Calcul des dimensions du canvas
-        self._setup_canvas()
-        
-        # Charger les données existantes de cette carte
-        self.load_existing_data()
-        
-        print(f"✓ Carte chargée: {self.map_name}")
+
+        if self.original_bg:
+            self._setup_canvas()
+            self.load_existing_data()
+            print(f"✓ Carte chargée: {self.map_name}")
 
     def load_existing_data(self):
         """Charge les données existantes de la carte depuis map_data.json"""
@@ -94,57 +102,61 @@ class MapEditor:
             try:
                 with open(load_path("data", "map_data.json"), "r") as f:
                     all_maps = json.load(f)
-                
+
                 if self.map_name in all_maps:
                     map_data = all_maps[self.map_name]
                     self.tiles = map_data.get("tiles", [])
                     self.links = map_data.get("links", [])
-                    
-                    # Mettre à jour le compteur d'IDs
+                    self.star_zones = map_data.get("star_zones", [])
+
                     if self.tiles:
                         self.tile_counter = max(tile['id'] for tile in self.tiles) + 1
                     else:
                         self.tile_counter = 0
-                    
-                    print(f"✓ Données chargées: {len(self.tiles)} tuiles, {len(self.links)} liens")
+
+                    print(f"✓ Données: {len(self.tiles)} tuiles, {len(self.links)} liens, "
+                          f"{len(self.star_zones)} zones étoiles")
                 else:
                     print(f"ℹ Aucune donnée existante pour {self.map_name}")
                     self.tiles = []
                     self.links = []
+                    self.star_zones = []
                     self.tile_counter = 0
             except (json.JSONDecodeError, IOError) as e:
                 print(f"⚠ Erreur de chargement: {e}")
-                self.tiles = []
-                self.links = []
-                self.tile_counter = 0
         else:
             print("ℹ Aucun fichier de données trouvé")
 
     def _load_image(self, img_path):
-        """Charge l'image de fond avec gestion d'erreur"""
+        """Charge l'image de fond"""
         try:
             if not os.path.exists(img_path):
                 raise FileNotFoundError(f"Image non trouvée: {img_path}")
-            image = pygame.image.load(img_path).convert()
-            print(f"✓ Image chargée: {img_path}")
-            return image
+            return pygame.image.load(img_path).convert()
         except FileNotFoundError as e:
             print(f"✗ ERREUR: {e}")
             return None
 
     def _setup_canvas(self):
-        """Configure les dimensions et position du canvas"""
-        canvas_height = HEIGHT - 40
-        aspect_ratio = self.original_bg.get_width() / self.original_bg.get_height()
-        canvas_width = int(canvas_height * aspect_ratio)
+        """Configure et redimensionne la carte pour qu'elle s'intègre parfaitement"""
+        max_canvas_w = WIDTH - UI_WIDTH - 40
+        max_canvas_h = HEIGHT - 40
         
-        self.canvas_w = canvas_width
-        self.canvas_h = canvas_height
-        self.display_bg = pygame.transform.scale(self.original_bg, (canvas_width, canvas_height))
+        img_w = self.original_bg.get_width()
+        img_h = self.original_bg.get_height()
         
-        # Centrer le canvas
-        self.offset_x = UI_WIDTH + (WIDTH - UI_WIDTH - canvas_width) // 2
-        self.offset_y = 20
+        # Conserver le ratio sans déborder de la fenêtre
+        ratio_w = max_canvas_w / img_w
+        ratio_h = max_canvas_h / img_h
+        scale = min(ratio_w, ratio_h)
+        
+        self.canvas_w = int(img_w * scale)
+        self.canvas_h = int(img_h * scale)
+        self.display_bg = pygame.transform.scale(self.original_bg, (self.canvas_w, self.canvas_h))
+
+        # Centrer
+        self.offset_x = UI_WIDTH + (WIDTH - UI_WIDTH - self.canvas_w) // 2
+        self.offset_y = (HEIGHT - self.canvas_h) // 2
 
     def screen_to_map(self, screen_pos):
         """Convertit une position écran en coordonnées normalisées [0, 1]"""
@@ -159,275 +171,281 @@ class MapEditor:
         return screen_x, screen_y
 
     def get_tile_at(self, screen_pos):
-        """Trouve la tuile à une position donnée"""
+        """Trouve la tuile sous le curseur"""
         map_x, map_y = self.screen_to_map(screen_pos)
-        
         for tile in self.tiles:
-            x_overlaps = tile['x'] <= map_x <= tile['x'] + tile['w']
-            y_overlaps = tile['y'] <= map_y <= tile['y'] + tile['h']
-            if x_overlaps and y_overlaps:
+            if tile['x'] <= map_x <= tile['x'] + tile['w'] and tile['y'] <= map_y <= tile['y'] + tile['h']:
                 return tile
         return None
 
     def _is_valid_map_coords(self, map_x, map_y):
-        """Vérifie si les coordonnées sont dans les limites de la carte"""
         return 0 <= map_x <= 1 and 0 <= map_y <= 1
 
     def save(self):
-        """Sauvegarde la carte en JSON en conservant les autres cartes"""
+        """Sauvegarde la carte et les zones étoiles en JSON"""
         if not self.img_path:
-            print("✗ Aucune carte chargée à sauvegarder")
             return
-            
-        # Charger les données existantes si le fichier existe
+
         all_maps = {}
         if os.path.exists(load_path("data", "map_data.json")):
             try:
                 with open(load_path("data", "map_data.json"), "r") as f:
                     all_maps = json.load(f)
             except (json.JSONDecodeError, IOError):
-                all_maps = {}
-        
-        # Ajouter ou mettre à jour la carte actuelle
+                pass
+
         all_maps[self.map_name] = {
             "image_path": self.img_path,
             "tiles": self.tiles,
-            "links": self.links
+            "links": self.links,
+            "star_zones": self.star_zones   # Sauvegarde des zones étoiles !
         }
-        
-        # Sauvegarder toutes les cartes
+
         with open(load_path("data", "map_data.json"), "w") as f:
             json.dump(all_maps, f, indent=4)
-        print(f"✓ Carte '{self.map_name}' sauvegardée: map_data.json ({len(self.tiles)} tuiles, {len(self.links)} liens)")
+            
+        print(f"✓ Carte '{self.map_name}' sauvegardée avec succès !")
 
     def load_map_from_json(self):
-        """Affiche une interface pour charger une carte existante"""
+        """Interface terminal simple pour charger une carte existante"""
         if not os.path.exists(load_path("data", "map_data.json")):
             print("✗ Aucun fichier map_data.json trouvé")
             return False
-        
+
         try:
             with open(load_path("data", "map_data.json"), "r") as f:
                 all_maps = json.load(f)
-            
+
             if not all_maps:
-                print("✗ Aucune carte disponible")
                 return False
-            
-            # Créer une liste des cartes disponibles
+
             map_list = list(all_maps.keys())
-            
-            # Interface simple de sélection
             print("\n--- Cartes disponibles ---")
             for i, map_name in enumerate(map_list):
-                map_data = all_maps[map_name]
-                print(f"{i+1}. {map_name} ({len(map_data.get('tiles', []))} tuiles)")
-            
-            # Demander le choix à l'utilisateur
-            while True:
-                try:
-                    choice = input("\nSélectionnez une carte (1-{}) ou 'q' pour quitter: ".format(len(map_list)))
-                    if choice.lower() == 'q':
-                        return False
-                    
-                    choice_idx = int(choice) - 1
-                    if 0 <= choice_idx < len(map_list):
-                        selected_map = map_list[choice_idx]
-                        map_data = all_maps[selected_map]
-                        
-                        # Charger la carte sélectionnée
-                        self.load_map(map_data['image_path'])
-                        return True
-                    else:
-                        print("Choix invalide")
-                except ValueError:
-                    print("Entrée invalide")
+                print(f"{i+1}. {map_name}")
+
+            choice = input(f"\nSélectionnez une carte (1-{len(map_list)}) ou 'q' pour quitter: ")
+            if choice.lower() != 'q':
+                choice_idx = int(choice) - 1
+                if 0 <= choice_idx < len(map_list):
+                    self.load_map(all_maps[map_list[choice_idx]]['image_path'])
+                    return True
         except Exception as e:
-            print(f"✗ Erreur lors du chargement: {e}")
-            return False
+            print(f"✗ Erreur : {e}")
+        return False
 
     def run(self):
         """Boucle principale"""
         clock = pygame.time.Clock()
         while True:
-            self.handle_events()
-            if self.original_bg:  # Ne dessine que si une carte est chargée
+            self.ui_rects.clear()  # Réinitialise les clics possibles à chaque frame
+            if self.original_bg:
                 self.draw()
             else:
                 self._draw_no_map_screen()
+                
+            self.handle_events()
             pygame.display.flip()
             clock.tick(60)
 
     def _draw_no_map_screen(self):
-        """Affiche un écran quand aucune carte n'est chargée"""
         self.screen.fill(COLORS["dark_gray"])
-        self._draw_minimal_ui()
-
-    def _draw_minimal_ui(self):
-        """Dessine une UI minimale pour le chargement"""
-        # Fond du panneau
         pygame.draw.rect(self.screen, COLORS["dark_blue"], (0, 0, UI_WIDTH, HEIGHT))
-        
-        # Titre
         title = self.title_font.render("TOY BATTLE EDITOR", True, COLORS["white"])
         self.screen.blit(title, (20, 30))
-        
-        # Bouton Load
+
         load_rect = pygame.Rect(20, 100, UI_WIDTH - 40, 50)
+        self.ui_rects['load_min'] = load_rect
         pygame.draw.rect(self.screen, COLORS["blue"], load_rect, border_radius=5)
         text = self.font.render("LOAD MAP", True, COLORS["white"])
-        text_rect = text.get_rect(center=load_rect.center)
-        self.screen.blit(text, text_rect)
+        self.screen.blit(text, text.get_rect(center=load_rect.center))
 
     def handle_events(self):
-        """Traite les événements"""
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
-            
+
             if event.type == pygame.MOUSEBUTTONDOWN:
-                if event.pos[0] < UI_WIDTH:
-                    self._on_ui_click(event.pos)
-                elif self.original_bg:  # Seulement si une carte est chargée
-                    self._on_map_click(event.pos)
+                if event.button == 1:  # Clic gauche
+                    if event.pos[0] < UI_WIDTH:
+                        self._on_ui_click(event.pos)
+                    elif self.original_bg:
+                        self._on_map_click(event.pos)
+                elif event.button == 3:  # Clic droit
+                    if self.current_mode == MODES["star"] and self.original_bg and event.pos[0] >= UI_WIDTH:
+                        self._on_map_right_click(event.pos)
 
     def _on_ui_click(self, ui_pos):
-        """Gère les clics sur l'interface utilisateur"""
-        y = ui_pos[1]
-        
+        """Gère les clics via les rectangles UI enregistrés de façon dynamique"""
+        # Si aucune map chargée
         if not self.original_bg:
-            # UI minimale pour le chargement
-            if 100 <= y <= 150:  # Bouton Load
+            if 'load_min' in self.ui_rects and self.ui_rects['load_min'].collidepoint(ui_pos):
                 self.load_map_from_json()
             return
-        
-        # Sélection du mode
-        if 100 <= y <= 140:
-            self.current_mode = MODES["tile"]
-        elif 150 <= y <= 190:
-            self.current_mode = MODES["link"]
-        elif 200 <= y <= 240:
-            self.current_mode = MODES["start_p1"]
-        elif 250 <= y <= 290:
-            self.current_mode = MODES["start_p2"]
-        elif 300 <= y <= 340:
-            self.current_mode = MODES["forteresse_p1"]
-        elif 350 <= y <= 390:
-            self.current_mode = MODES["forteresse_p2"]
-        elif 400 <= y <= 440:
-            self.current_mode = MODES["delete"]
-        
-        # Bouton Sauvegarder
-        elif HEIGHT - 100 <= y <= HEIGHT - 50:
+
+        # Changement de mode
+        for mode_key, mode_val in MODES.items():
+            if mode_val in self.ui_rects and self.ui_rects[mode_val].collidepoint(ui_pos):
+                self.current_mode = mode_val
+                # Reset des variables si on passe en mode étoile
+                if mode_val == MODES["star"]:
+                    self.selected_star_tiles.clear()
+                    self.star_area_start = None
+                    self.star_drawing = False
+                return
+
+        # Boutons généraux (Sauvegarder / Charger)
+        if 'save' in self.ui_rects and self.ui_rects['save'].collidepoint(ui_pos):
             self.save()
-        
-        # Bouton Load
-        elif HEIGHT - 50 <= y <= HEIGHT:
+            return
+        if 'load' in self.ui_rects and self.ui_rects['load'].collidepoint(ui_pos):
             self.load_map_from_json()
+            return
+
+        # Boutons spécifiques au Panel Étoile
+        if self.current_mode == MODES["star"]:
+            if not self.star_drawing and 'define_spawn' in self.ui_rects and self.ui_rects['define_spawn'].collidepoint(ui_pos):
+                if self.selected_star_tiles:
+                    self.star_drawing = True
+                    self.star_area_start = None
+            elif self.star_drawing and 'cancel_spawn' in self.ui_rects and self.ui_rects['cancel_spawn'].collidepoint(ui_pos):
+                self.star_drawing = False
+                self.star_area_start = None
+
+    def _on_map_right_click(self, screen_pos):
+        """Supprime une zone étoile existante sous le curseur (clic droit)"""
+        if self.current_mode != MODES["star"] or self.star_drawing:
+            return
+            
+        map_x, map_y = self.screen_to_map(screen_pos)
+        to_remove = None
+        for idx, zone in enumerate(self.star_zones):
+            area = zone["area"]
+            if area['x'] <= map_x <= area['x'] + area['w'] and area['y'] <= map_y <= area['y'] + area['h']:
+                to_remove = idx
+                break
+                
+        if to_remove is not None:
+            del self.star_zones[to_remove]
+            print(f"✓ Zone étoile {to_remove} supprimée")
 
     def _on_map_click(self, screen_pos):
-        """Gère les clics sur la carte"""
+        """Gère les clics gauche sur la carte"""
         map_x, map_y = self.screen_to_map(screen_pos)
-        
         if not self._is_valid_map_coords(map_x, map_y):
             return
 
-        if self.current_mode in [MODES["tile"], MODES["start_p1"], MODES["start_p2"], 
-                                 MODES["forteresse_p1"], MODES["forteresse_p2"]]:
+        if self.current_mode == MODES["star"]:
+            self._handle_star_zone_click(screen_pos, map_x, map_y)
+        elif self.current_mode in [MODES["tile"], MODES["start_p1"], MODES["start_p2"], MODES["forteresse_p1"], MODES["forteresse_p2"]]:
             self._handle_tile_creation(map_x, map_y)
         elif self.current_mode == MODES["link"]:
             self._handle_link_creation(screen_pos)
         elif self.current_mode == MODES["delete"]:
             self._handle_tile_deletion(screen_pos)
 
+    def _handle_star_zone_click(self, screen_pos, map_x, map_y):
+        """Gère la création de la zone étoile ou la sélection de tuiles"""
+        if self.star_drawing:
+            # On définit le rectangle d'apparition (Spawn)
+            if self.star_area_start is None:
+                self.star_area_start = (map_x, map_y)
+            else:
+                x1, y1 = self.star_area_start
+                new_zone = {
+                    "required_tiles": sorted(list(self.selected_star_tiles)),
+                    "area": {
+                        "x": min(x1, map_x), 
+                        "y": min(y1, map_y), 
+                        "w": abs(map_x - x1), 
+                        "h": abs(map_y - y1)
+                    }
+                }
+                self.star_zones.append(new_zone)
+                print(f"✓ Nouvelle zone étoile créée nécessitant les tuiles : {new_zone['required_tiles']}")
+                
+                self.selected_star_tiles.clear()
+                self.star_area_start = None
+                self.star_drawing = False
+        else:
+            # On sélectionne les tuiles requises
+            tile = self.get_tile_at(screen_pos)
+            if tile:
+                tid = tile['id']
+                if tid in self.selected_star_tiles:
+                    self.selected_star_tiles.remove(tid)
+                else:
+                    self.selected_star_tiles.add(tid)
+
     def _handle_tile_creation(self, map_x, map_y):
-        """Crée une tuile (2 clics)"""
         if self.temp_start_pos is None:
             self.temp_start_pos = (map_x, map_y)
         else:
             x1, y1 = self.temp_start_pos
-            
-            # Déterminer le type de tuile
-            if self.current_mode == MODES["start_p1"]:
-                tile_type = "start"
-                tile_player = "player1"
-            elif self.current_mode == MODES["start_p2"]:
-                tile_type = "start"
-                tile_player = "player2"
-            elif self.current_mode == MODES["forteresse_p1"]:
-                tile_type = "forteresse"
-                tile_player = "player1"
-            elif self.current_mode == MODES["forteresse_p2"]:
-                tile_type = "forteresse"
-                tile_player = "player2"
-            else:
-                tile_type = "normal"
-                tile_player = None
-            
+            tile_type = "normal"
+            tile_player = None
+
+            if self.current_mode == MODES["start_p1"]: tile_type, tile_player = "start", "player1"
+            elif self.current_mode == MODES["start_p2"]: tile_type, tile_player = "start", "player2"
+            elif self.current_mode == MODES["forteresse_p1"]: tile_type, tile_player = "forteresse", "player1"
+            elif self.current_mode == MODES["forteresse_p2"]: tile_type, tile_player = "forteresse", "player2"
+
             new_tile = {
                 "id": self.tile_counter,
-                "x": min(x1, map_x),
-                "y": min(y1, map_y),
-                "w": abs(map_x - x1),
-                "h": abs(map_y - y1),
+                "x": min(x1, map_x), "y": min(y1, map_y),
+                "w": abs(map_x - x1), "h": abs(map_y - y1),
                 "type": tile_type,
             }
-            
-            # Ajouter le joueur si c'est un start ou une forteresse
             if tile_player:
                 new_tile["player"] = tile_player
-            
+
             self.tiles.append(new_tile)
             self.tile_counter += 1
             self.temp_start_pos = None
 
     def _handle_link_creation(self, screen_pos):
-        """Crée un lien entre deux tuiles (2 clics)"""
         clicked_tile = self.get_tile_at(screen_pos)
-        if not clicked_tile:
-            return
-
+        if not clicked_tile: return
+        
         if self.selected_tile_id is None:
             self.selected_tile_id = clicked_tile['id']
         else:
             if self.selected_tile_id != clicked_tile['id']:
-                link = [self.selected_tile_id, clicked_tile['id']]
+                link = sorted([self.selected_tile_id, clicked_tile['id']])
                 if link not in self.links:
                     self.links.append(link)
             self.selected_tile_id = None
 
     def _handle_tile_deletion(self, screen_pos):
-        """Supprime une tuile et ses liens"""
         clicked_tile = self.get_tile_at(screen_pos)
-        if not clicked_tile:
-            return
-
+        if not clicked_tile: return
+        
         tile_id = clicked_tile['id']
         self.tiles = [t for t in self.tiles if t['id'] != tile_id]
         self.links = [l for l in self.links if tile_id not in l]
+        
+        # Nettoyer les zones étoiles associées à la tuile
+        for zone in self.star_zones:
+            zone["required_tiles"] = [tid for tid in zone["required_tiles"] if tid != tile_id]
+        self.selected_star_tiles.discard(tile_id)
+
+    # ========================================================================
+    # AFFICHAGE / DESSIN
+    # ========================================================================
 
     def draw(self):
-        """Redessine l'interface"""
         self.screen.fill(COLORS["dark_gray"])
         self._draw_ui()
         self._draw_map()
 
     def _draw_ui(self):
-        """Dessine le panneau d'interface (gauche)"""
-        # Fond du panneau
         pygame.draw.rect(self.screen, COLORS["dark_blue"], (0, 0, UI_WIDTH, HEIGHT))
+        self.screen.blit(self.title_font.render("TOY BATTLE EDITOR", True, COLORS["white"]), (20, 20))
         
-        # Titre
-        title = self.title_font.render("TOY BATTLE EDITOR", True, COLORS["white"])
-        self.screen.blit(title, (20, 30))
-        
-        # Infos carte
         if self.current_map_name:
-            map_info = self.font.render(f"Map: {self.current_map_name}", True, COLORS["cyan"])
-            self.screen.blit(map_info, (20, 65))
+            self.screen.blit(self.font.render(f"Map: {self.current_map_name}", True, COLORS["cyan"]), (20, 50))
 
-        # Boutons des modes
         modes_list = [
             (MODES["tile"], "1. Draw Tiles", COLORS["green"]),
             (MODES["link"], "2. Create Links", COLORS["blue"]),
@@ -436,157 +454,158 @@ class MapEditor:
             (MODES["forteresse_p1"], "5. P1 Fortress", COLORS["orange"]),
             (MODES["forteresse_p2"], "6. P2 Fortress", COLORS["cyan"]),
             (MODES["delete"], "7. Delete Elements", COLORS["red"]),
+            (MODES["star"], "8. Star Zones", COLORS["purple"]),
         ]
 
-        for i, (mode, label, color) in enumerate(modes_list):
-            self._draw_mode_button(i, mode, label, color)
+        # Dessin dynamique des boutons de modes
+        y_offset = 80
+        for mode, label, color in modes_list:
+            btn_rect = pygame.Rect(20, y_offset, UI_WIDTH - 40, 35)
+            self.ui_rects[mode] = btn_rect
+            bg_color = color if self.current_mode == mode else COLORS["dark_bg"]
+            text_color = COLORS["black"] if self.current_mode == mode else COLORS["white"]
+            
+            pygame.draw.rect(self.screen, bg_color, btn_rect, border_radius=5)
+            self.screen.blit(self.font.render(label, True, text_color), (btn_rect.x + 10, btn_rect.y + 7))
+            y_offset += 45
 
-        # Bouton Sauvegarder
-        self._draw_save_button()
-        
-        # Bouton Load
-        self._draw_load_button()
+        if self.current_mode == MODES["star"]:
+            self._draw_star_panel(y_offset)
 
-    def _draw_mode_button(self, index, mode, label, color):
-        """Dessine un bouton de mode"""
-        button_rect = pygame.Rect(20, 100 + index * 50, UI_WIDTH - 40, 40)
-        
-        # Couleur selon sélection
-        bg_color = color if self.current_mode == mode else COLORS["dark_bg"]
-        pygame.draw.rect(self.screen, bg_color, button_rect, border_radius=5)
-        
-        # Texte
-        text_color = COLORS["black"] if self.current_mode == mode else COLORS["white"]
-        text = self.font.render(label, True, text_color)
-        self.screen.blit(text, (button_rect.x + 10, button_rect.y + 10))
+        # Boutons Sauvegarder et Charger ancrés en bas
+        save_rect = pygame.Rect(20, HEIGHT - 110, UI_WIDTH - 40, 40)
+        self.ui_rects['save'] = save_rect
+        pygame.draw.rect(self.screen, COLORS["light_green"], save_rect, border_radius=5)
+        self.screen.blit(self.font.render("SAVE JSON", True, COLORS["black"]), (save_rect.x + 60, save_rect.y + 10))
 
-    def _draw_save_button(self):
-        """Dessine le bouton sauvegarder"""
-        button_rect = pygame.Rect(20, HEIGHT - 100, UI_WIDTH - 40, 40)
-        pygame.draw.rect(self.screen, COLORS["light_green"], button_rect, border_radius=5)
-        
-        text = self.font.render("SAVE JSON", True, COLORS["black"])
-        text_rect = text.get_rect(center=button_rect.center)
-        self.screen.blit(text, text_rect)
-    
-    def _draw_load_button(self):
-        """Dessine le bouton charger"""
-        button_rect = pygame.Rect(20, HEIGHT - 50, UI_WIDTH - 40, 40)
-        pygame.draw.rect(self.screen, COLORS["blue"], button_rect, border_radius=5)
-        
-        text = self.font.render("LOAD MAP", True, COLORS["white"])
-        text_rect = text.get_rect(center=button_rect.center)
-        self.screen.blit(text, text_rect)
+        load_rect = pygame.Rect(20, HEIGHT - 60, UI_WIDTH - 40, 40)
+        self.ui_rects['load'] = load_rect
+        pygame.draw.rect(self.screen, COLORS["blue"], load_rect, border_radius=5)
+        self.screen.blit(self.font.render("LOAD MAP", True, COLORS["white"]), (load_rect.x + 60, load_rect.y + 10))
+
+    def _draw_star_panel(self, y_base):
+        """Affiche le panneau dédié pour créer les zones étoiles"""
+        panel_rect = pygame.Rect(10, y_base + 10, UI_WIDTH - 20, 180)
+        pygame.draw.rect(self.screen, COLORS["dark_bg"], panel_rect, border_radius=5)
+        pygame.draw.rect(self.screen, COLORS["purple"], panel_rect, 2, border_radius=5)
+        self.screen.blit(self.font.render("★ Star Zones ★", True, COLORS["violet"]), (20, y_base + 15))
+
+        if not self.star_drawing:
+            # Etape 1 : Selection des tuiles
+            tiles_str = ", ".join(str(tid) for tid in sorted(self.selected_star_tiles)) if self.selected_star_tiles else "Aucune"
+            self.screen.blit(self.font.render(f"Tuiles requises : {tiles_str}", True, COLORS["white"]), (20, y_base + 45))
+
+            # Bouton "Define Spawn Area"
+            btn_rect = pygame.Rect(20, y_base + 80, UI_WIDTH - 40, 35)
+            self.ui_rects['define_spawn'] = btn_rect
+            
+            if self.selected_star_tiles:
+                pygame.draw.rect(self.screen, COLORS["light_green"], btn_rect, border_radius=5)
+                self.screen.blit(self.font.render("Dessiner la zone", True, COLORS["black"]), (btn_rect.x + 30, btn_rect.y + 7))
+            else:
+                pygame.draw.rect(self.screen, COLORS["gray"], btn_rect, border_radius=5)
+                self.screen.blit(self.font.render("Sél. tuiles d'abord", True, COLORS["dark_gray"]), (btn_rect.x + 20, btn_rect.y + 7))
+        else:
+            # Etape 2 : Dessin du rectangle
+            self.screen.blit(self.font.render("1. Cliquez un coin", True, COLORS["yellow"]), (20, y_base + 40))
+            self.screen.blit(self.font.render("2. Cliquez l'opposé", True, COLORS["yellow"]), (20, y_base + 60))
+
+            cancel_rect = pygame.Rect(20, y_base + 90, UI_WIDTH - 40, 35)
+            self.ui_rects['cancel_spawn'] = cancel_rect
+            pygame.draw.rect(self.screen, COLORS["red"], cancel_rect, border_radius=5)
+            self.screen.blit(self.font.render("Annuler le dessin", True, COLORS["white"]), (cancel_rect.x + 30, cancel_rect.y + 7))
+
+        # Statistiques
+        self.screen.blit(self.font.render(f"Zones créées: {len(self.star_zones)}", True, COLORS["violet"]), (20, y_base + 140))
+        self.screen.blit(self.font.render("(Clic droit sur zone = Suppr)", True, COLORS["gray"]), (20, y_base + 160))
 
     def _draw_map(self):
-        """Dessine la zone de la carte"""
-        if not self.display_bg:
-            return
-            
-        # Ombre portée
-        pygame.draw.rect(
-            self.screen, COLORS["black"],
-            (self.offset_x + 5, self.offset_y + 5, self.canvas_w, self.canvas_h)
-        )
+        if not self.display_bg: return
         
-        # Image de fond
+        pygame.draw.rect(self.screen, COLORS["black"], (self.offset_x + 5, self.offset_y + 5, self.canvas_w, self.canvas_h))
         self.screen.blit(self.display_bg, (self.offset_x, self.offset_y))
 
-        # Dessiner les liens
+        self._draw_star_zones()
         self._draw_links()
-
-        # Dessiner les tuiles
         self._draw_tiles()
-
-        # Rectangle de sélection en cours
         self._draw_selection_preview()
 
+        if self.current_mode == MODES["star"] and not self.star_drawing:
+            self._draw_selected_star_tiles()
+
+    def _draw_star_zones(self):
+        for idx, zone in enumerate(self.star_zones):
+            area = zone["area"]
+            screen_x, screen_y = self.map_to_screen(area["x"], area["y"])
+            screen_w = int(area["w"] * self.canvas_w)
+            screen_h = int(area["h"] * self.canvas_h)
+            
+            surface = pygame.Surface((screen_w, screen_h), pygame.SRCALPHA)
+            surface.fill((180, 100, 255, 60))  # Violet transparent
+            self.screen.blit(surface, (screen_x, screen_y))
+            pygame.draw.rect(self.screen, COLORS["violet"], (screen_x, screen_y, screen_w, screen_h), 3)
+            
+            self.screen.blit(self.font.render(f"★ Zone {idx}", True, COLORS["white"]), (screen_x + 5, screen_y + 5))
+
+    def _draw_selected_star_tiles(self):
+        for tile in self.tiles:
+            if tile['id'] in self.selected_star_tiles:
+                screen_x, screen_y = self.map_to_screen(tile['x'], tile['y'])
+                screen_w, screen_h = int(tile['w'] * self.canvas_w), int(tile['h'] * self.canvas_h)
+                pygame.draw.rect(self.screen, COLORS["purple"], (screen_x, screen_y, screen_w, screen_h), 5)
+
     def _draw_links(self):
-        """Dessine les lignes entre tuiles"""
         for start_id, end_id in self.links:
             start_tile = next((t for t in self.tiles if t['id'] == start_id), None)
             end_tile = next((t for t in self.tiles if t['id'] == end_id), None)
-            
             if start_tile and end_tile:
-                start_pos = self.map_to_screen(
-                    start_tile['x'] + start_tile['w'] / 2,
-                    start_tile['y'] + start_tile['h'] / 2
-                )
-                end_pos = self.map_to_screen(
-                    end_tile['x'] + end_tile['w'] / 2,
-                    end_tile['y'] + end_tile['h'] / 2
-                )
+                start_pos = self.map_to_screen(start_tile['x'] + start_tile['w'] / 2, start_tile['y'] + start_tile['h'] / 2)
+                end_pos = self.map_to_screen(end_tile['x'] + end_tile['w'] / 2, end_tile['y'] + end_tile['h'] / 2)
                 pygame.draw.line(self.screen, COLORS["yellow"], start_pos, end_pos, 4)
 
     def _draw_tiles(self):
-        """Dessine les tuiles"""
         for tile in self.tiles:
             screen_x, screen_y = self.map_to_screen(tile['x'], tile['y'])
-            screen_w = int(tile['w'] * self.canvas_w)
-            screen_h = int(tile['h'] * self.canvas_h)
+            screen_w, screen_h = int(tile['w'] * self.canvas_w), int(tile['h'] * self.canvas_h)
 
-            # Couleur selon type et sélection
-            if self.selected_tile_id == tile['id']:
-                color = COLORS["white"]
+            color = COLORS["green"]
+            if self.selected_tile_id == tile['id']: color = COLORS["white"]
             elif tile['type'] == 'start':
-                # Distinguer les start points par joueur
-                if tile.get('player') == 'player1':
-                    color = COLORS["orange"]
-                elif tile.get('player') == 'player2':
-                    color = COLORS["cyan"]
-                else:
-                    color = COLORS["orange"]  # Par défaut
+                color = COLORS["orange"] if tile.get('player') == 'player1' else COLORS["cyan"]
             elif tile['type'] == 'forteresse':
-                # Distinguer les forteresses par joueur
-                if tile.get('player') == 'player1':
-                    color = COLORS["red"]
-                elif tile.get('player') == 'player2':
-                    color = COLORS["blue"]
-                else:
-                    color = COLORS["red"]  # Par défaut
-            else:
-                color = COLORS["green"]
+                color = COLORS["red"] if tile.get('player') == 'player1' else COLORS["blue"]
 
-            pygame.draw.rect(self.screen, color, (screen_x, screen_y, screen_w, screen_h), 2)
-            
-            # ID et type de la tuile
-            if tile['type'] == 'start' and tile.get('player'):
-                player_num = "P1" if tile['player'] == 'player1' else "P2"
-                tile_label = f"S{tile['id']}({player_num})"
-            elif tile['type'] == 'forteresse' and tile.get('player'):
-                player_num = "P1" if tile['player'] == 'player1' else "P2"
-                tile_label = f"F{tile['id']}({player_num})"
-            else:
-                tile_label = str(tile['id'])
-            
-            tile_id_text = self.font.render(tile_label, True, color)
-            self.screen.blit(tile_id_text, (screen_x + 2, screen_y + 2))
+            pygame.draw.rect(self.screen, color, (screen_x, screen_y, screen_w, screen_h), 3)
+
+            # Labels
+            label = str(tile['id'])
+            if tile['type'] in ['start', 'forteresse']:
+                p = "P1" if tile.get('player') == 'player1' else "P2"
+                t = "S" if tile['type'] == 'start' else "F"
+                label = f"{t}{tile['id']}({p})"
+                
+            self.screen.blit(self.font.render(label, True, color), (screen_x + 5, screen_y + 5))
 
     def _draw_selection_preview(self):
-        """Affiche l'aperçu du rectangle en cours de dessin"""
-        if not self.temp_start_pos:
-            return
+        # Preview création tuiles
+        if self.current_mode in [MODES["tile"], MODES["start_p1"], MODES["start_p2"], MODES["forteresse_p1"], MODES["forteresse_p2"]]:
+            if self.temp_start_pos:
+                map_x, map_y = self.screen_to_map(pygame.mouse.get_pos())
+                x1, y1 = self.temp_start_pos
+                sx, sy = self.map_to_screen(min(x1, map_x), min(y1, map_y))
+                sw, sh = int(abs(map_x - x1) * self.canvas_w), int(abs(map_y - y1) * self.canvas_h)
+                pygame.draw.rect(self.screen, COLORS["white"], (sx, sy, sw, sh), 2)
 
-        if self.current_mode not in [MODES["tile"], MODES["start_p1"], MODES["start_p2"],
-                                     MODES["forteresse_p1"], MODES["forteresse_p2"]]:
-            return
-
-        map_x, map_y = self.screen_to_map(pygame.mouse.get_pos())
-        x1, y1 = self.temp_start_pos
-
-        screen_x = int(min(x1, map_x) * self.canvas_w) + self.offset_x
-        screen_y = int(min(y1, map_y) * self.canvas_h) + self.offset_y
-        screen_w = int(abs(map_x - x1) * self.canvas_w)
-        screen_h = int(abs(map_y - y1) * self.canvas_h)
-
-        pygame.draw.rect(self.screen, COLORS["white"], (screen_x, screen_y, screen_w, screen_h), 1)
-
+        # Preview création zone Etoile
+        if self.current_mode == MODES["star"] and self.star_drawing and self.star_area_start:
+            map_x, map_y = self.screen_to_map(pygame.mouse.get_pos())
+            x1, y1 = self.star_area_start
+            sx, sy = self.map_to_screen(min(x1, map_x), min(y1, map_y))
+            sw, sh = int(abs(map_x - x1) * self.canvas_w), int(abs(map_y - y1) * self.canvas_h)
+            
+            pygame.draw.rect(self.screen, COLORS["violet"], (sx, sy, sw, sh), 3)
+            self.screen.blit(self.font.render("Star Spawn", True, COLORS["violet"]), (sx + 5, sy + 5))
 
 if __name__ == "__main__":
-    # Lance l'éditeur avec une carte (optionnel)
-    # Décommentez la ligne suivante pour charger une carte au démarrage:
-    # map_editor = MapEditor("C:\\Users\\louis\\Documents\\Toybattle\\toybattle\\assets\\map\\MapGlace.jpg")
-    
-    # Ou lancez sans carte pour utiliser le bouton LOAD
-    map_editor = MapEditor()  # Sans carte au démarrage
+    map_editor = MapEditor()
     map_editor.run()
