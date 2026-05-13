@@ -15,12 +15,12 @@ games = {}
 def gen_code():
     code = ""
     for i in range(4):
-        code = code + str(random.randint(0,9))
+        code = code + str(random.randint(1,9))
     return code
 
 def map_choice():
     # Retourne un index de map (0 ou 1 pour l'instant)
-    return random.randint(0,1)
+    return random.randint(0, len(map_data)-1)
 
 # Structure d'une partie
 def create_game_struct(map_id):

@@ -63,7 +63,7 @@ def leaderboard(screen, clock, windowsdata, WIDTH, HEIGHT):
     leaderboard = pygame.image.load(load_path("assets/Menus/Leaderboard", "Leaderboard.png")).convert()
     display_leaderboard = pygame.transform.scale(leaderboard, (WIDTH, HEIGHT))
     
-    ui_font = pygame.font.SysFont(None, 24)
+    ui_font = pygame.font.SysFont(None, 32)
 
     try: 
         (response, count) = (supabase
