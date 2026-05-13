@@ -350,7 +350,8 @@
                     "h": 0.047368421052631504
                 }
             }
-        ]
+        ],
+        "num_stars": 7
     },
     "MapHalloween": {
         "image_path": "assets/map/MapHalloween.jpg",
@@ -608,6 +609,7 @@
                 7
             ]
         ],
-        "star_zones": []
+        "star_zones": [],
+        "num_stars": 7
     }
 }

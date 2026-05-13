@@ -77,7 +77,7 @@ def leaderboard(screen, clock, windowsdata, WIDTH, HEIGHT):
         print(f"Erreur lors du fetch leaderboard : {error}")
         data = []
 
-    print(data)
+    # print(data)
     
     leaderboard_tiles = []
     for window in windowsdata:
@@ -114,7 +114,16 @@ def leaderboard(screen, clock, windowsdata, WIDTH, HEIGHT):
                 rows[-1][1].append(tile)
 
         # Prepare top 3 and current user row
-        top_players = [player for player in player_stats if player[0] != current_user][:3]
+        # top_players = [player for player in player_stats if player[0] != current_user][:3]
+        # print("Top players:", top_players)
+        # current_player = next((player for player in player_stats if player[0] == current_user), None)
+        # print("Current player:", current_player)
+
+        top_players = [player for player in player_stats][:3]
+
+        if(current_user in [player[0] for player in player_stats]):
+            top_players = [player for player in player_stats][:4]
+
         current_player = next((player for player in player_stats if player[0] == current_user), None)
 
         leaderboard_rows = top_players[:3]
@@ -139,6 +148,15 @@ def leaderboard(screen, clock, windowsdata, WIDTH, HEIGHT):
             for col_index, tile in enumerate(row_tiles):
                 if col_index >= len(values):
                     break
+
+                if col_index == 0:
+                    ui_font = pygame.font.SysFont(None, 40)
+                elif col_index == 1:
+                    ui_font = pygame.font.SysFont(None, 32)
+                elif col_index == 2:
+                    ui_font = pygame.font.SysFont(None, 35)
+                elif col_index == 3:
+                    ui_font = pygame.font.SysFont(None, 35)
 
                 x = int(tile['x'] * WIDTH)
                 y = int(tile['y'] * HEIGHT)

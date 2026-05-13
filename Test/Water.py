@@ -1,5 +1,8 @@
 import pygame
 import sys
+import os
+
+os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
 
 pygame.init()
 

@@ -29,6 +29,7 @@ def gameMulti(screen, clock, gamedata):
     # Le créateur (server) est le premier à rejoindre, donc joueur 1?
     # En fait on utilise le rôle directement pour le check de tour
     my_player_name = my_role 
+    enemy_player_name = 'client' if my_role == 'server' else 'server'
 
     pygame.display.set_caption(f"Toy Battle - Partie {game_id} ({my_role})")
 
@@ -70,8 +71,12 @@ def gameMulti(screen, clock, gamedata):
 
     map_surface = update_layout(WIDTH, HEIGHT, map_img)
 
+    # --- ZONES D'ÉTOILES ---
+    star_zones = datamap[map_name].get("star_zones", [])
+    claimed_zones = {}  # {index_de_la_zone: "server" ou "client"}
+    player_stars = {'server': 0, 'client': 0}  # Compteur des étoiles
+
     # --- SYSTÈME DE CARTES ---
-    # On initialise les cartes localement
     deck_host, deck_client = Cards.init_cards()
     if my_role == 'server':
         my_hand = Cards.host_cards(deck_host)
@@ -139,7 +144,6 @@ def gameMulti(screen, clock, gamedata):
         except:
             pass
 
-    # Start polling thread
     polling_thread = threading.Thread(target=poll_server, daemon=True)
     polling_thread.start()
 
@@ -156,13 +160,10 @@ def gameMulti(screen, clock, gamedata):
             return True
         occupying_name = occupying_card.get("name", "")
         new_name = new_card.get("name", "")
-        # Kwak recouvre absolument tout, y compris Roxy
         if "Kwak" in new_name:
             return True
-        # Roxy reste invincible contre toutes les autres
         if "Roxy" in occupying_name:
             return False
-        # Autres comparaisons (force)
         new_strength = new_card.get("strength", 0)
         occupying_strength = occupying_card.get("strength", 0)
         return new_strength > occupying_strength
@@ -219,7 +220,6 @@ def gameMulti(screen, clock, gamedata):
             tile_graph[link[1]].add(link[0])
         valid_ids = set()
         
-        # Le joueur 1 (server) part d'un coté, joueur 2 (client) de l'autre
         player_side = "player1" if my_role == "server" else "player2"
 
         def is_own_fortress(tile_id):
@@ -229,8 +229,7 @@ def gameMulti(screen, clock, gamedata):
         def has_path_to_tile(target_tile_id):
             own_tiles = {u["tile_id"] for u in units if u["player"] == my_player_name}
             start_tiles = {
-                t["id"]
-                for t in datamap[map_name]["tiles"]
+                t["id"] for t in datamap[map_name]["tiles"]
                 if t["type"] == "start" and t.get("player") == player_side and t["id"] in own_tiles
             }
             if not start_tiles:
@@ -260,7 +259,6 @@ def gameMulti(screen, clock, gamedata):
             if tile["type"] == "start" and tile["player"] == player_side:
                 valid_ids.add(tile["id"])
         
-        # Et les cases adjacentes à ses propres unités
         for u in units:
             if u["player"] == my_player_name:
                 for link in datamap[map_name]["links"]:
@@ -273,18 +271,13 @@ def gameMulti(screen, clock, gamedata):
         
         standard_valid = set(tid for tid in valid_ids if not is_own_fortress(tid))
         
-        # Adjust based on card
         if "Crochet" in card.get("name", ""):
-            # Can be placed anywhere but not on occupied tiles, even if this power is higher than the occupying one
             valid_ids = set(t["id"] for t in datamap[map_name]["tiles"] if not is_own_fortress(t["id"]))
         elif "Kwak" in card.get("name", ""):
-            # Can be placed on standard valid, even occupied
             valid_ids = standard_valid
         else:
-            # Standard: only empty
             valid_ids = standard_valid
         
-        # Filter for occupied
         final_valid = set()
         for tid in valid_ids:
             if not can_place_on_tile(tid):
@@ -301,11 +294,41 @@ def gameMulti(screen, clock, gamedata):
     # --- BOUCLE PRINCIPALE ---
     while True:
         current_time = time.time()
-        # Polling is now in background thread
 
+        # ======================================================================
+        # GESTION DES ÉTOILES (Logique)
+        # ======================================================================
+        with game_state_lock:
+            current_units = game_state.get("units", [])
+            
+        # Création d'un dictionnaire liant id de tuile -> propriétaire actuel
+        tile_owners = {u["tile_id"]: u["player"] for u in current_units}
+        
+        # Vérifier si de nouvelles zones ont été capturées
+        for idx, zone in enumerate(star_zones):
+            if idx not in claimed_zones:
+                req_tiles = zone.get("required_tiles", [])
+                if not req_tiles:
+                    continue
+                    
+                first_tile_owner = tile_owners.get(req_tiles[0])
+                if first_tile_owner:
+                    # Vérifier si le joueur possède TOUTES les tuiles requises
+                    if all(tile_owners.get(t) == first_tile_owner for t in req_tiles):
+                        claimed_zones[idx] = first_tile_owner  # Acquisition définitive
+                        player_stars[first_tile_owner] += 1
+                        
+                        # Effet visuel au centre de la zone d'étoile
+                        zx = MAP_X + int((zone["area"]["x"] + zone["area"]["w"]/2) * MAP_WIDTH)
+                        zy = MAP_Y + int((zone["area"]["y"] + zone["area"]["h"]/2) * MAP_HEIGHT)
+                        systeme_particules.create_particles(zx, zy, nombre=60)
+
+        # ======================================================================
+        # GESTION DES ÉVÉNEMENTS
+        # ======================================================================
         screen.fill((30, 30, 35))
         mouse_pos = pygame.mouse.get_pos()
-        ui_font = pygame.font.SysFont(None, 24)
+        ui_font = pygame.font.SysFont("arial", 24)
         
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -323,7 +346,7 @@ def gameMulti(screen, clock, gamedata):
                     if rect.collidepoint(mouse_pos):
                         selected_card_index = i
                 
-                # Placement sur la Map (si c'est mon tour)
+                # Placement sur la Map
                 if selected_card_index is not None and game_state.get("turn") == my_player_name:
                     with game_state_lock:
                         if game_state.get("turn") == my_player_name:
@@ -335,10 +358,8 @@ def gameMulti(screen, clock, gamedata):
                                          tile["w"]*MAP_WIDTH, tile["h"]*MAP_HEIGHT)
                         
                         if tr.collidepoint(mouse_pos) and tile["id"] in valid_ids:
-                            # Envoyer le coup au serveur
                             send_move(tile["id"], current_card)
                             
-                            # Effets locaux immédiats
                             x, y = get_screen_pos(tile["id"])
                             systeme_particules.create_particles(x, y, nombre=40)
                             
@@ -353,7 +374,6 @@ def gameMulti(screen, clock, gamedata):
                             selected_card_index = None
                             execute_ability(current_card, game_state.get("units", []), my_hand, my_deck)
                             
-                            # Forcer un poll immédiat pour voir le changement
                             try:
                                 r = requests.get(f"{BASE_URL}/state", params={"game_id": game_id}, timeout=1)
                                 if r.status_code == 200:
@@ -375,11 +395,9 @@ def gameMulti(screen, clock, gamedata):
                             x, y = get_screen_pos(u_data["tile_id"])
                             rect = pygame.Rect(x - 30, y - 40, 60, 80)
                             if rect.collidepoint(mouse_pos):
-                                # Détruire l'unité
                                 with game_state_lock:
                                     if u_data in game_state["units"]:
                                         game_state["units"].remove(u_data)
-                                # Coût : retirer une carte de la main
                                 if destroy_cost:
                                     if my_hand:
                                         my_hand.pop(0)
@@ -390,28 +408,35 @@ def gameMulti(screen, clock, gamedata):
         # --- DESSIN ---
         screen.blit(map_surface, (MAP_X, MAP_Y))
 
-        # Si la partie est finie, afficher le résultat et revenir au menu
+        # -----------------------------------------------------------
+        # DESSIN DES ZONES D'ÉTOILES NON CAPTURÉES
+        # -----------------------------------------------------------
+        star_font = pygame.font.SysFont("arial", 40)
+        for idx, zone in enumerate(star_zones):
+            if idx not in claimed_zones:
+                zx = MAP_X + int(zone["area"]["x"] * MAP_WIDTH)
+                zy = MAP_Y + int(zone["area"]["y"] * MAP_HEIGHT)
+                zw = int(zone["area"]["w"] * MAP_WIDTH)
+                zh = int(zone["area"]["h"] * MAP_HEIGHT)
+                
+                # Rectangle et icône
+                pygame.draw.rect(screen, (180, 100, 255), (zx, zy, zw, zh), 3, border_radius=8)
+                star_char = star_font.render("★", True, (180, 100, 255))
+                cx = zx + zw//2 - star_char.get_width()//2
+                cy = zy + zh//2 - star_char.get_height()//2
+                screen.blit(star_char, (cx, cy))
+
+        # Fin de jeu
         if game_state.get("state") == "finished":
             if victory_start is None:
                 victory_start = current_time
                 selected_card_index = None
                 selecting_target = False
             winner = game_state.get("winner")
-            
-            print(f"Game finished! Winner: {winner}, I am: {my_player_name}")
-            
-            #update room in db to set winner          
+                     
             if winner == my_player_name:
                 try:
-                    response = (
-                        supabase.table("games")
-                        .update([
-                            {"win": my_name},
-                        ])
-                        .eq("room_id", game_id)
-                        .execute()
-                    )
-                    print(response)
+                    supabase.table("games").update([{"win": my_name}]).eq("room_id", game_id).execute()
                 except Exception as exception:
                     print(exception)
                 result_text = "Victoire !"
@@ -437,16 +462,15 @@ def gameMulti(screen, clock, gamedata):
                     pygame.draw.rect(s, color, (0, 0, sw, sh), border_radius=5)
                     screen.blit(s, (sx, sy))
 
-        # Dessiner les unités du serveur
+        # Dessiner les unités
         for u_data in game_state.get("units", []):
             u = Unit(u_data["tile_id"], u_data["card"], u_data["player"])
             u.draw(screen)
 
-        # UI
+        # UI BAS DU JEU
         pygame.draw.rect(screen, (14, 14, 18), (0, UI_Y - 4, WIDTH, 154), border_radius=8)
         pygame.draw.rect(screen, (70, 70, 90), (0, UI_Y - 4, WIDTH, 154), 2, border_radius=8)
 
-        ui_font = pygame.font.SysFont(None, 24)
         turn_text = "C'est votre tour !" if game_state.get("turn") == my_player_name else f"Attente de {game_state.get('turn')}..."
         if game_state.get("state") == "waiting": turn_text = "En attente d'un adversaire..."
         
@@ -455,7 +479,6 @@ def gameMulti(screen, clock, gamedata):
         screen.blit(title, (20, UI_Y - 26))
         screen.blit(turn, (20, UI_Y - 26 + title.get_height()))
 
-        # Main du joueur
         for i, card in enumerate(my_hand):
             cx = WIDTH//2 - 150 + i*110
             cy = UI_Y + 20
@@ -471,15 +494,42 @@ def gameMulti(screen, clock, gamedata):
             if is_selected:
                 pygame.draw.rect(screen, (255, 215, 0), (cx-5, cy-5, 100, 130), 3, border_radius=8)
 
-        # Afficher la description de la carte sélectionnée
         if selected_card_index is not None:
             card = my_hand[selected_card_index]
             desc_text = ui_font.render(card.get("ability_desc", "No description"), True, (255, 230, 180))
             screen.blit(desc_text, (20, UI_Y + 100))
 
-        # Pioche
         pygame.draw.rect(screen, (20, 20, 25), (MAP_X + MAP_WIDTH + 10, MAP_Y + 290, 120, 150), border_radius=8)
         screen.blit(pioche_img, (MAP_X + MAP_WIDTH + 20, MAP_Y + 300))
+
+        # -----------------------------------------------------------
+        # UI CENTRE GAUCHE - COMPTEUR D'ÉTOILES
+        # -----------------------------------------------------------
+        stars_panel_rect = pygame.Rect((MAP_X - 160), (MAP_Y + 290), 150, 150)
+        pygame.draw.rect(screen, (34, 34, 40), stars_panel_rect, border_radius=8)
+        pygame.draw.rect(screen, (255, 215, 0), stars_panel_rect, 2, border_radius=8)
+        
+        my_stars_txt = ui_font.render(f"Mes étoiles : {player_stars[my_player_name]} ★", True, (255, 215, 0))
+        enemy_stars_txt = ui_font.render(f"Ennemi : {player_stars[enemy_player_name]} ★", True, (150, 150, 160))
+
+        if(player_stars[my_player_name] >= datamap[map_name].get("num_stars", 7) // 2 + 1):
+            # victory_start = victory_start or current_time
+            # result_text = "Victoire !"
+            # result_render = ui_font.render(result_text, True, (255, 220, 120))
+            # screen.blit(result_render, (WIDTH//2 - result_render.get_width()//2, UI_Y - 80))
+            # if current_time - victory_start > 5:
+            #     return "mainMenu"
+            pass
+        
+        screen.blit(my_stars_txt, (
+            stars_panel_rect.x + 10,
+            stars_panel_rect.y + 40
+        ))
+
+        screen.blit(enemy_stars_txt, (
+            stars_panel_rect.x + 10,
+            stars_panel_rect.y + 80
+        ))
 
         systeme_particules.update()
         systeme_particules.draw(screen)

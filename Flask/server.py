@@ -47,6 +47,17 @@ def is_victory_tile(game, unit):
     return False
 
 
+def is_victory_stars(game, player):
+    # map_name = list(map_data.keys())[game["map_id"]]
+    # player_stars = sum(
+    #     t.get("stars", 0)
+    #     for t in map_data[map_name]["tiles"]
+    #     if any(u["tile_id"] == t["id"] and u["player"] == player for u in game["units"])
+    # )
+    # return player_stars >= map_data[map_name].get("num_stars", 7) // 2 + 1
+    pass
+
+
 def has_path_to_enemy_fortress(game, target_tile_id, player):
     map_name = list(map_data.keys())[game["map_id"]]
     player_side = get_player_side(player)
