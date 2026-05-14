@@ -106,6 +106,18 @@ def switch_turn(game):
         )
 
 
+def can_cover(new_card, occupying_card):
+    if occupying_card is None:
+        return True
+    occupying_name = occupying_card.get("name", "")
+    new_name = new_card.get("name", "")
+    if "Kwak" in new_name:
+        return True
+    if "Roxy" in occupying_name:
+        return False
+    return new_card.get("strength", 0) > occupying_card.get("strength", 0)
+
+
 def has_path_to_enemy_fortress(game, target_tile_id, player):
     map_name = list(map_data.keys())[game["map_id"]]
     player_side = get_player_side(player)
@@ -199,6 +211,15 @@ def move():
     }
     game["units"].append(new_unit)
 
+    # Supprimer l'unité ennemie recouverte sur la même tuile si le placement le permet
+    same_tile_enemy = None
+    for unit in reversed(game["units"]):
+        if unit is not new_unit and unit["tile_id"] == tile_id and unit["player"] != player:
+            same_tile_enemy = unit
+            break
+    if same_tile_enemy and can_cover(card_data, same_tile_enemy["card"]):
+        game["units"].remove(same_tile_enemy)
+
     # Résoudre les batailles pour la nouvelle unité
     resolve_battles(game, new_unit)
 
@@ -289,6 +310,15 @@ def resolve_battles(game, new_unit):
 
     # Roxy does not destroy adjacent tiles on placement and is immune to adjacency battles
     if new_unit["card"]["name"] == "Roxy":
+        return
+
+    # Mastok chooses a target after placement, so it should not resolve adjacency automatically
+    if new_unit["card"]["name"] == "Mastok":
+        return
+
+    # Crochet ne détruit pas d'unités adjacentes lors de son placement,
+    # il ne supprime que l'unité qu'il recouvre directement.
+    if new_unit["card"]["name"] == "Crochet":
         return
 
     # Utiliser la carte du dessus si plusieurs unités sont superposées
