@@ -88,6 +88,8 @@ def gameMulti(screen, clock, gamedata):
         
     selected_card_index = None
     selecting_target = False
+    pending_target_card = None
+    pending_target_tile_id = None
     victory_start = None
 
     can_play_extra = False
@@ -175,10 +177,20 @@ def gameMulti(screen, clock, gamedata):
         except:
             pass
 
+    def send_destroy_target(target_tile_id):
+        try:
+            requests.post(f"{BASE_URL}/resolve_target", json={
+                "game_id": game_id,
+                "player": my_player_name,
+                "target_tile_id": target_tile_id
+            }, timeout=2)
+        except:
+            pass
+
     def handle_pending_penalty():
         if game_state.get("pending_hand_penalty") == my_player_name:
             if my_hand:
-                my_hand.pop(random.randrange(len(my_hand)))
+                my_hand.pop(0)
             send_card_counts()
             resolve_pending_penalty()
 
@@ -207,8 +219,8 @@ def gameMulti(screen, clock, gamedata):
         occupying_strength = occupying_card.get("strength", 0)
         return new_strength > occupying_strength
 
-    def execute_ability(card, active_units, hand, deck):
-        global selecting_target, destroy_cost
+    def execute_ability(card, active_units, hand, deck, placed_tile_id=None):
+        nonlocal selecting_target, destroy_cost, pending_target_card, pending_target_tile_id
         desc = card.get("ability_desc", "")
         if "Piocher 2 cartes" in desc:
             draw_count = min(2, len(deck), max(0, 8 - len(hand)))
@@ -218,9 +230,20 @@ def gameMulti(screen, clock, gamedata):
             if deck and len(hand) < 8:
                 hand.append(deck.pop(0))
         elif "Détruit une tuile adverse" in desc or "Supprime une des tuiles adverses" in desc:
-            selecting_target = True
-            if "supprime la tuile du dessus" in desc:
-                destroy_cost = True
+            if card.get("name", "") == "Mastok":
+                selecting_target = True
+                pending_target_card = card
+                pending_target_tile_id = placed_tile_id
+                if "supprime la tuile du dessus" in desc:
+                    destroy_cost = True
+
+    def get_valid_target_ids(units):
+        if not selecting_target or pending_target_card is None:
+            return []
+        if pending_target_card.get("name", "").startswith("Mastok") and pending_target_tile_id is not None:
+            adjacent_ids = {link[1] if link[0] == pending_target_tile_id else link[0] for link in datamap[map_name]["links"] if pending_target_tile_id in link}
+            return [u["tile_id"] for u in units if u["player"] != my_player_name and u["tile_id"] in adjacent_ids]
+        return [u["tile_id"] for u in units if u["player"] != my_player_name]
 
     class Unit:
         def __init__(self, tile_id, card_data, owner):
@@ -229,7 +252,7 @@ def gameMulti(screen, clock, gamedata):
             self.owner = owner
             self.image = get_card_image(card_data)
 
-        def draw(self, surf):
+        def draw(self, surf, highlight=False):
             self.x, self.y = get_screen_pos(self.tile_id)
             tile = next((t for t in datamap[map_name]["tiles"] if t["id"] == self.tile_id), None)
             if tile:
@@ -244,6 +267,8 @@ def gameMulti(screen, clock, gamedata):
             image = pygame.transform.scale(self.image, (width, height))
             rect = image.get_rect(center=(self.x, self.y))
             surf.blit(image, rect)
+            if highlight:
+                pygame.draw.rect(surf, (255, 80, 80), rect.inflate(10, 10), 4, border_radius=10)
 
             if self.owner == my_player_name:
                 outline_rect = rect.inflate(8, 8)
@@ -412,7 +437,7 @@ def gameMulti(screen, clock, gamedata):
                                 if "Rejouer immédiatement" in card_desc:
                                     can_play_extra = True
                             selected_card_index = None
-                            execute_ability(current_card, game_state.get("units", []), my_hand, my_deck)
+                            execute_ability(current_card, game_state.get("units", []), my_hand, my_deck, tile["id"])
                             send_card_counts()
                             
                             try:
@@ -444,21 +469,22 @@ def gameMulti(screen, clock, gamedata):
                         pass
 
                 # Sélection de cible pour destruction
-                if selecting_target:
+                if selecting_target and pending_target_card is not None:
+                    valid_target_ids = get_valid_target_ids(game_state.get("units", []))
                     for u_data in game_state.get("units", []):
-                        if u_data["player"] != my_player_name:
+                        if u_data["tile_id"] in valid_target_ids:
                             x, y = get_screen_pos(u_data["tile_id"])
                             rect = pygame.Rect(x - 30, y - 40, 60, 80)
                             if rect.collidepoint(mouse_pos):
-                                with game_state_lock:
-                                    if u_data in game_state["units"]:
-                                        game_state["units"].remove(u_data)
+                                send_destroy_target(u_data["tile_id"])
                                 if destroy_cost:
                                     if my_hand:
                                         my_hand.pop(0)
                                         send_card_counts()
                                     destroy_cost = False
                                 selecting_target = False
+                                pending_target_card = None
+                                pending_target_tile_id = None
                                 break
 
         # --- DESSIN ---
@@ -525,9 +551,11 @@ def gameMulti(screen, clock, gamedata):
                     screen.blit(s, (sx, sy))
 
         # Dessiner les unités
+        targetable_ids = get_valid_target_ids(game_state.get("units", []))
         for u_data in game_state.get("units", []):
+            highlight = selecting_target and u_data["player"] != my_player_name and u_data["tile_id"] in targetable_ids
             u = Unit(u_data["tile_id"], u_data["card"], u_data["player"])
-            u.draw(screen)
+            u.draw(screen, highlight=highlight)
 
         # UI BAS DU JEU
         pygame.draw.rect(screen, (14, 14, 18), (0, UI_Y - 4, WIDTH, 154), border_radius=8)

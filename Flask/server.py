@@ -37,7 +37,8 @@ def create_game_struct(map_id):
             "client": {"hand": 0, "deck": 0}
         },
         "pending_deck_penalty": None,
-        "pending_hand_penalty": None
+        "pending_hand_penalty": None,
+        "pending_target": None
     }
 
 
@@ -201,8 +202,17 @@ def move():
     # Résoudre les batailles pour la nouvelle unité
     resolve_battles(game, new_unit)
 
-    # Appliquer les effets de la carte
-    change_turn = apply_card_effects(game, new_unit)
+    # Appliquer les effets de la carte ou attendre le ciblage explicite
+    card_name = card_data.get("name", "")
+    if card_name == "Mastok":
+        game["pending_target"] = {
+            "player": player,
+            "tile_id": tile_id,
+            "card": card_data
+        }
+        change_turn = False
+    else:
+        change_turn = apply_card_effects(game, new_unit)
 
     # Vérifier la condition de victoire par forteresse ennemie
     if is_victory_tile(game, new_unit) and has_path_to_enemy_fortress(game, new_unit["tile_id"], player):
@@ -220,6 +230,50 @@ def move():
         )
 
     return jsonify({"message": "move played", "game": game})
+
+@app.route("/resolve_target", methods=["POST"])
+def resolve_target():
+    data = request.json
+    game_id = data.get("game_id")
+    player = data.get("player")
+    target_tile_id = data.get("target_tile_id")
+
+    if game_id not in games:
+        return jsonify({"error": "Game not found"}), 404
+
+    game = games[game_id]
+
+    if game["state"] != "playing":
+        return jsonify({"error": "Game not started"}), 400
+
+    pending = game.get("pending_target")
+    if not pending or pending.get("player") != player:
+        return jsonify({"error": "No pending target selection"}), 400
+
+    if target_tile_id is None:
+        return jsonify({"error": "Target tile required"}), 400
+
+    target_unit = next((u for u in game["units"] if u["tile_id"] == target_tile_id and u["player"] != player), None)
+    if not target_unit:
+        return jsonify({"error": "Invalid target"}), 400
+
+    card_name = pending["card"].get("name", "")
+    map_name = list(map_data.keys())[game["map_id"]]
+    if card_name == "Mastok":
+        adjacent_ids = {link[1] if link[0] == pending["tile_id"] else link[0] for link in map_data[map_name]["links"] if pending["tile_id"] in link}
+        if target_tile_id not in adjacent_ids:
+            return jsonify({"error": "Target not adjacent"}), 400
+        game["units"].remove(target_unit)
+    elif card_name == "XB-42":
+        game["units"].remove(target_unit)
+    else:
+        return jsonify({"error": "Unsupported target card"}), 400
+
+    game["pending_target"] = None
+    switch_turn(game)
+    check_card_exhaustion(game)
+    return jsonify({"message": "target resolved", "game": game})
+
 
 def resolve_battles(game, new_unit):
     map_name = list(map_data.keys())[game["map_id"]]
