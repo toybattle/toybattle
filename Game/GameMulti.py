@@ -166,6 +166,15 @@ def gameMulti(screen, clock, gamedata):
         except:
             pass
 
+    def send_leave():
+        try:
+            requests.post(f"{BASE_URL}/leave", json={
+                "game_id": game_id,
+                "player": my_player_name
+            }, timeout=1)
+        except:
+            pass
+
     def handle_pending_penalty():
         if game_state.get("pending_hand_penalty") == my_player_name:
             if my_hand:
@@ -362,6 +371,7 @@ def gameMulti(screen, clock, gamedata):
         
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
+                send_leave()
                 return "mainMenu"
                 
             if event.type == pygame.VIDEORESIZE:
@@ -487,6 +497,10 @@ def gameMulti(screen, clock, gamedata):
                     print(exception)
                 result_text = "Victoire !"
             elif winner == "draw":
+                try:
+                    supabase.table("games").update([{"win": "MATCH_NULL"}]).eq("room_id", game_id).execute()
+                except Exception as exception:
+                    print(exception)
                 result_text = "Match nul..."
             else:
                 result_text = "Défaite..."

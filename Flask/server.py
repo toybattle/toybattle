@@ -333,6 +333,38 @@ def draw():
     switch_turn(game)
     return jsonify({"message": "draw done", "game": game})
 
+@app.route("/leave", methods=["POST"])
+def leave():
+    data = request.json
+    game_id = data.get("game_id")
+    player = data.get("player")
+
+    if not game_id or game_id not in games:
+        return jsonify({"error": "Game not found"}), 404
+
+    if player not in ("server", "client"):
+        return jsonify({"error": "Invalid player"}), 400
+
+    game = games[game_id]
+    if game["state"] == "finished":
+        return jsonify({"message": "Game already finished", "game": game})
+
+    if player not in game["players"]:
+        return jsonify({"error": "Player not in game"}), 400
+
+    if len(game["players"]) == 2 and game["state"] == "playing":
+        other = game["players"][1] if game["players"][0] == player else game["players"][0]
+        game["winner"] = other
+        game["state"] = "finished"
+        return jsonify({"message": "Player left, opponent wins", "game": game})
+
+    if len(game["players"]) == 1:
+        game["players"].remove(player)
+        game["state"] = "waiting"
+        return jsonify({"message": "Player left", "game": game})
+
+    return jsonify({"message": "Leave recorded", "game": game})
+
 @app.route("/resolve_deck_penalty", methods=["POST"])
 def resolve_deck_penalty():
     data = request.json
