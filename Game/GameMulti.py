@@ -224,9 +224,8 @@ def gameMulti(screen, clock, gamedata):
         
         # Mastok cible uniquement les unités adjacentes
         if "Mastok" in card_name:
-            map_name_key = list(datamap.keys())[game_state.get("turn", 0)]
             adjacent_ids = {link[1] if link[0] == placed_tile_id else link[0] 
-                           for link in datamap.get(map_name_key, {}).get("links", []) 
+                           for link in datamap[map_name].get("links", []) 
                            if placed_tile_id in link}
             return [u["tile_id"] for u in units if u["player"] != pending_player and u["tile_id"] in adjacent_ids]
         
