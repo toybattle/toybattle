@@ -107,15 +107,67 @@ def switch_turn(game):
 
 
 def can_cover(new_card, occupying_card):
+    """Détermine si une nouvelle carte peut recouvrir une carte existante"""
     if occupying_card is None:
         return True
-    occupying_name = occupying_card.get("name", "")
+    
     new_name = new_card.get("name", "")
+    occupying_name = occupying_card.get("name", "")
+    new_strength = new_card.get("strength", 0)
+    occupying_strength = occupying_card.get("strength", 0)
+    
+    # Kwak recouvre toutes les cartes
     if "Kwak" in new_name:
         return True
+    
+    # Roxy recouvre toutes les cartes
+    if "Roxy" in new_name:
+        return True
+    
+    # Roxy ne peut pas être recouverte (sauf par Kwak ou Roxy)
     if "Roxy" in occupying_name:
         return False
-    return new_card.get("strength", 0) > occupying_card.get("strength", 0)
+    
+    # Crochet recouvre les cartes avec force inférieure et Kwak
+    if "Crochet" in new_name:
+        if "Kwak" in occupying_name:
+            return True
+        return new_strength > occupying_strength
+    
+    # Captain recouvre les cartes avec force inférieure et Kwak
+    if "Cap'taine" in new_name or "Captain" in new_name:
+        if "Kwak" in occupying_name:
+            return True
+        return new_strength > occupying_strength
+    
+    # Mastok recouvre les cartes avec force inférieure et Kwak
+    if "Mastok" in new_name:
+        if "Kwak" in occupying_name:
+            return True
+        return new_strength > occupying_strength
+    
+    # Skully recouvre les cartes avec force inférieure et Kwak
+    if "Skully" in new_name:
+        if "Kwak" in occupying_name:
+            return True
+        return new_strength > occupying_strength
+    
+    # Star recouvre les cartes avec force inférieure et Kwak
+    if "Star" in new_name:
+        if "Kwak" in occupying_name:
+            return True
+        return new_strength > occupying_strength
+    
+    # XB42 recouvre les cartes avec force inférieure et Kwak
+    if "XB-42" in new_name or "XB42" in new_name:
+        if "Kwak" in occupying_name:
+            return True
+        return new_strength > occupying_strength
+    
+    # Autres cartes: recouvrent selon la force
+    if "Kwak" in occupying_name:
+        return True
+    return new_strength > occupying_strength
 
 
 def has_path_to_enemy_fortress(game, target_tile_id, player):
@@ -223,17 +275,8 @@ def move():
     # Résoudre les batailles pour la nouvelle unité
     resolve_battles(game, new_unit)
 
-    # Appliquer les effets de la carte ou attendre le ciblage explicite
-    card_name = card_data.get("name", "")
-    if card_name == "Mastok":
-        game["pending_target"] = {
-            "player": player,
-            "tile_id": tile_id,
-            "card": card_data
-        }
-        change_turn = False
-    else:
-        change_turn = apply_card_effects(game, new_unit)
+    # Appliquer les effets de la carte
+    change_turn = apply_card_effects(game, new_unit)
 
     # Vérifier la condition de victoire par forteresse ennemie
     if is_victory_tile(game, new_unit) and has_path_to_enemy_fortress(game, new_unit["tile_id"], player):
@@ -274,29 +317,33 @@ def resolve_target():
     if target_tile_id is None:
         return jsonify({"error": "Target tile required"}), 400
 
-    target_unit = next((u for u in game["units"] if u["tile_id"] == target_tile_id and u["player"] != player), None)
-    if not target_unit:
-        return jsonify({"error": "Invalid target"}), 400
-
     card_name = pending["card"].get("name", "")
     map_name = list(map_data.keys())[game["map_id"]]
-    if card_name == "Mastok":
-        adjacent_ids = {link[1] if link[0] == pending["tile_id"] else link[0] for link in map_data[map_name]["links"] if pending["tile_id"] in link}
+    
+    # Mastok: Cible une unité adjacente
+    if "Mastok" in card_name:
+        adjacent_ids = {link[1] if link[0] == pending["tile_id"] else link[0] 
+                       for link in map_data[map_name]["links"] if pending["tile_id"] in link}
         if target_tile_id not in adjacent_ids:
             return jsonify({"error": "Target not adjacent"}), 400
+        
+        target_unit = next((u for u in game["units"] if u["tile_id"] == target_tile_id and u["player"] != player), None)
+        if not target_unit:
+            return jsonify({"error": "Invalid target"}), 400
+        
         game["units"].remove(target_unit)
-    elif card_name == "XB-42":
-        game["units"].remove(target_unit)
-    else:
-        return jsonify({"error": "Unsupported target card"}), 400
 
     game["pending_target"] = None
     switch_turn(game)
     check_card_exhaustion(game)
+    
     return jsonify({"message": "target resolved", "game": game})
 
 
 def resolve_battles(game, new_unit):
+    """Résout les batailles adjacentes pour une unité placée"""
+    card_name = new_unit["card"]["name"]
+    card_strength = new_unit["card"].get("strength", 0)
     map_name = list(map_data.keys())[game["map_id"]]
     links = map_data[map_name]["links"]
 
@@ -308,17 +355,16 @@ def resolve_battles(game, new_unit):
         elif link[1] == new_unit["tile_id"]:
             adjacent_tiles.add(link[0])
 
-    # Roxy does not destroy adjacent tiles on placement and is immune to adjacency battles
-    if new_unit["card"]["name"] == "Roxy":
+    # Roxy: Ne détruit pas d'unités adjacentes et est immune
+    if "Roxy" in card_name:
         return
 
-    # Mastok chooses a target after placement, so it should not resolve adjacency automatically
-    if new_unit["card"]["name"] == "Mastok":
+    # Mastok: Attend la sélection de cible explicite, pas de bataille automatique
+    if "Mastok" in card_name:
         return
 
-    # Crochet ne détruit pas d'unités adjacentes lors de son placement,
-    # il ne supprime que l'unité qu'il recouvre directement.
-    if new_unit["card"]["name"] == "Crochet":
+    # Crochet: Ne détruit pas d'unités adjacentes lors du placement
+    if "Crochet" in card_name:
         return
 
     # Utiliser la carte du dessus si plusieurs unités sont superposées
@@ -332,50 +378,71 @@ def resolve_battles(game, new_unit):
         unit = top_units_by_tile.get(tile_id)
         if not unit or unit["player"] == new_unit["player"]:
             continue
-        if unit["card"]["name"] == "Roxy":
+        
+        occupying_name = unit["card"].get("name", "")
+        occupying_strength = unit["card"].get("strength", 0)
+        
+        # Roxy est immunisée
+        if "Roxy" in occupying_name:
             continue
-        if new_unit["card"]["strength"] > unit["card"]["strength"]:
+        
+        # Comparaison de force pour les batailles normales
+        if card_strength > occupying_strength:
             units_to_remove.append(unit)
 
-    # Supprimer les unités mangées
+    # Supprimer les unités vaincues
     for unit in units_to_remove:
         if unit in game["units"]:
             game["units"].remove(unit)
 
 
 def apply_card_effects(game, new_unit):
+    """Applique les effets de la carte placée"""
     card_name = new_unit["card"]["name"]
     change_turn = True
-    if card_name == "Mastok":
-        # Détruit une tuile adverse adjacente (le dessus si plusieurs sont superposées)
-        map_name = list(map_data.keys())[game["map_id"]]
-        links = map_data[map_name]["links"]
-        adjacent_tiles = set()
-        for link in links:
-            if link[0] == new_unit["tile_id"]:
-                adjacent_tiles.add(link[1])
-            elif link[1] == new_unit["tile_id"]:
-                adjacent_tiles.add(link[0])
-
-        top_units_by_tile = {}
-        for unit in game["units"]:
-            top_units_by_tile[unit["tile_id"]] = unit
-
-        for tile_id in adjacent_tiles:
-            unit = top_units_by_tile.get(tile_id)
-            if unit and unit["player"] != new_unit["player"]:
-                game["units"].remove(unit)
-                break  # Supprime une seule unité adverse au sommet
-    elif card_name == "XB-42":
+    
+    # Captain: Rejoue immédiatement
+    if "Cap'taine" in card_name or "Captain" in card_name:
+        change_turn = False
+    
+    # Skully: Pioche 2 cartes à l'adversaire
+    elif "Skully" in card_name:
+        opponent = "client" if new_unit["player"] == "server" else "server"
+        hand_count = game["card_counts"][opponent].get("hand", 0)
+        deck_count = game["card_counts"][opponent].get("deck", 0)
+        # L'adversaire pioche jusqu'à 2 cartes si possible
+        if deck_count > 0:
+            draw_count = min(2, deck_count, max(0, 8 - hand_count))
+            game["card_counts"][opponent]["hand"] = hand_count + draw_count
+            game["card_counts"][opponent]["deck"] = deck_count - draw_count
+    
+    # Star: Pioche 1 carte à l'adversaire
+    elif "Star" in card_name:
+        opponent = "client" if new_unit["player"] == "server" else "server"
+        hand_count = game["card_counts"][opponent].get("hand", 0)
+        deck_count = game["card_counts"][opponent].get("deck", 0)
+        # L'adversaire pioche 1 carte si possible
+        if deck_count > 0 and hand_count < 8:
+            game["card_counts"][opponent]["hand"] = hand_count + 1
+            game["card_counts"][opponent]["deck"] = deck_count - 1
+    
+    # XB42: Supprime une carte aléatoirement de la main de l'adversaire
+    elif "XB-42" in card_name or "XB42" in card_name:
         opponent = "client" if new_unit["player"] == "server" else "server"
         hand_count = game["card_counts"][opponent].get("hand", 0)
         if hand_count > 0:
             game["card_counts"][opponent]["hand"] = hand_count - 1
             game["pending_hand_penalty"] = opponent
-    elif card_name == "Cap'taine":
-        # Rejouer immédiatement
-        change_turn = False
-    # Autres effets peuvent être ajoutés ici
+    
+    # Mastok: Sélection de cible après placement (détruit une carte adjacente ennemie)
+    elif "Mastok" in card_name:
+        game["pending_target"] = {
+            "player": new_unit["player"],
+            "tile_id": new_unit["tile_id"],
+            "card": new_unit["card"]
+        }
+        change_turn = False  # Le tour ne change pas tant que la cible n'est pas sélectionnée
+    
     return change_turn
 
 @app.route("/update_card_counts", methods=["POST"])

@@ -87,13 +87,7 @@ def gameMulti(screen, clock, gamedata):
         my_deck = deck_client
         
     selected_card_index = None
-    selecting_target = False
-    pending_target_card = None
-    pending_target_tile_id = None
     victory_start = None
-
-    can_play_extra = False
-    destroy_cost = False
 
     # Cache des images de cartes
     card_image_cache = {}
@@ -219,31 +213,24 @@ def gameMulti(screen, clock, gamedata):
         occupying_strength = occupying_card.get("strength", 0)
         return new_strength > occupying_strength
 
-    def execute_ability(card, active_units, hand, deck, placed_tile_id=None):
-        nonlocal selecting_target, destroy_cost, pending_target_card, pending_target_tile_id
-        desc = card.get("ability_desc", "")
-        if "Piocher 2 cartes" in desc:
-            draw_count = min(2, len(deck), max(0, 8 - len(hand)))
-            for _ in range(draw_count):
-                hand.append(deck.pop(0))
-        elif "Pioche une seule tuile" in desc:
-            if deck and len(hand) < 8:
-                hand.append(deck.pop(0))
-        elif "Détruit une tuile adverse" in desc or "Supprime une des tuiles adverses" in desc:
-            if card.get("name", "") == "Mastok":
-                selecting_target = True
-                pending_target_card = card
-                pending_target_tile_id = placed_tile_id
-                if "supprime la tuile du dessus" in desc:
-                    destroy_cost = True
-
     def get_valid_target_ids(units):
-        if not selecting_target or pending_target_card is None:
+        pending = game_state.get("pending_target")
+        if pending is None:
             return []
-        if pending_target_card.get("name", "").startswith("Mastok") and pending_target_tile_id is not None:
-            adjacent_ids = {link[1] if link[0] == pending_target_tile_id else link[0] for link in datamap[map_name]["links"] if pending_target_tile_id in link}
-            return [u["tile_id"] for u in units if u["player"] != my_player_name and u["tile_id"] in adjacent_ids]
-        return [u["tile_id"] for u in units if u["player"] != my_player_name]
+        
+        card_name = pending.get("card", {}).get("name", "")
+        placed_tile_id = pending.get("tile_id")
+        pending_player = pending.get("player")
+        
+        # Mastok cible uniquement les unités adjacentes
+        if "Mastok" in card_name:
+            map_name_key = list(datamap.keys())[game_state.get("turn", 0)]
+            adjacent_ids = {link[1] if link[0] == placed_tile_id else link[0] 
+                           for link in datamap.get(map_name_key, {}).get("links", []) 
+                           if placed_tile_id in link}
+            return [u["tile_id"] for u in units if u["player"] != pending_player and u["tile_id"] in adjacent_ids]
+        
+        return []
 
     class Unit:
         def __init__(self, tile_id, card_data, owner):
@@ -423,21 +410,13 @@ def gameMulti(screen, clock, gamedata):
                                          tile["w"]*MAP_WIDTH, tile["h"]*MAP_HEIGHT)
                         
                         if tr.collidepoint(mouse_pos) and tile["id"] in valid_ids:
-                            send_move(tile["id"], current_card)
+                            send_move(tile["id"], my_hand[selected_card_index])
                             
                             x, y = get_screen_pos(tile["id"])
                             systeme_particules.create_particles(x, y, nombre=40)
                             
-                            card_desc = current_card.get("ability_desc", "")
-                            if can_play_extra:
-                                my_hand.pop(selected_card_index)
-                                can_play_extra = False
-                            else:
-                                my_hand.pop(selected_card_index)
-                                if "Rejouer immédiatement" in card_desc:
-                                    can_play_extra = True
+                            my_hand.pop(selected_card_index)
                             selected_card_index = None
-                            execute_ability(current_card, game_state.get("units", []), my_hand, my_deck, tile["id"])
                             send_card_counts()
                             
                             try:
@@ -468,8 +447,8 @@ def gameMulti(screen, clock, gamedata):
                     except:
                         pass
 
-                # Sélection de cible pour destruction
-                if selecting_target and pending_target_card is not None:
+                # Sélection de cible pour destruction (Mastok)
+                if game_state.get("pending_target") is not None:
                     valid_target_ids = get_valid_target_ids(game_state.get("units", []))
                     for u_data in game_state.get("units", []):
                         if u_data["tile_id"] in valid_target_ids:
@@ -477,14 +456,6 @@ def gameMulti(screen, clock, gamedata):
                             rect = pygame.Rect(x - 30, y - 40, 60, 80)
                             if rect.collidepoint(mouse_pos):
                                 send_destroy_target(u_data["tile_id"])
-                                if destroy_cost:
-                                    if my_hand:
-                                        my_hand.pop(0)
-                                        send_card_counts()
-                                    destroy_cost = False
-                                selecting_target = False
-                                pending_target_card = None
-                                pending_target_tile_id = None
                                 break
 
         # --- DESSIN ---
@@ -513,7 +484,6 @@ def gameMulti(screen, clock, gamedata):
             if victory_start is None:
                 victory_start = current_time
                 selected_card_index = None
-                selecting_target = False
             winner = game_state.get("winner")
                      
             if winner == my_player_name:
@@ -553,7 +523,7 @@ def gameMulti(screen, clock, gamedata):
         # Dessiner les unités
         targetable_ids = get_valid_target_ids(game_state.get("units", []))
         for u_data in game_state.get("units", []):
-            highlight = selecting_target and u_data["player"] != my_player_name and u_data["tile_id"] in targetable_ids
+            highlight = game_state.get("pending_target") is not None and u_data["player"] != my_player_name and u_data["tile_id"] in targetable_ids
             u = Unit(u_data["tile_id"], u_data["card"], u_data["player"])
             u.draw(screen, highlight=highlight)
 
