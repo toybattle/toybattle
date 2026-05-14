@@ -202,11 +202,11 @@ def gameMulti(screen, clock, gamedata):
         global selecting_target, destroy_cost
         desc = card.get("ability_desc", "")
         if "Piocher 2 cartes" in desc:
-            for _ in range(2):
-                if deck:
-                    hand.append(deck.pop(0))
+            draw_count = min(2, len(deck), max(0, 5 - len(hand)))
+            for _ in range(draw_count):
+                hand.append(deck.pop(0))
         elif "Pioche une seule tuile" in desc:
-            if deck:
+            if deck and len(hand) < 5:
                 hand.append(deck.pop(0))
         elif "Détruit une tuile adverse" in desc or "Supprime une des tuiles adverses" in desc:
             selecting_target = True
@@ -315,9 +315,9 @@ def gameMulti(screen, clock, gamedata):
             if tid not in occupied_ids:
                 final_valid.add(tid)
             else:
-                if "Crochet" not in card.get("name", ""):
-                    occupying = unit_on_tile[tid]["card"]
-                    if can_cover(card, occupying):
+                occupying_unit = unit_on_tile[tid]
+                if occupying_unit["player"] != my_player_name:
+                    if can_cover(card, occupying_unit["card"]):
                         final_valid.add(tid)
         return list(final_valid)
 

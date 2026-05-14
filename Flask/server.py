@@ -223,7 +223,7 @@ def move():
 def resolve_battles(game, new_unit):
     map_name = list(map_data.keys())[game["map_id"]]
     links = map_data[map_name]["links"]
-    
+
     # Trouver les unités adjacentes
     adjacent_tiles = set()
     for link in links:
@@ -231,24 +231,38 @@ def resolve_battles(game, new_unit):
             adjacent_tiles.add(link[1])
         elif link[1] == new_unit["tile_id"]:
             adjacent_tiles.add(link[0])
-    
-    # Vérifier les batailles
-    units_to_remove = []
+
+    # Roxy does not destroy adjacent tiles on placement and is immune to adjacency battles
+    if new_unit["card"]["name"] == "Roxy":
+        return
+
+    # Utiliser la carte du dessus si plusieurs unités sont superposées
+    top_units_by_tile = {}
     for unit in game["units"]:
-        if unit["tile_id"] in adjacent_tiles and unit["player"] != new_unit["player"]:
-            # Bataille: si force supérieure, manger
-            if new_unit["card"]["strength"] > unit["card"]["strength"]:
-                units_to_remove.append(unit)
-    
+        top_units_by_tile[unit["tile_id"]] = unit
+
+    # Vérifier les batailles contre les unités adjacentes
+    units_to_remove = []
+    for tile_id in adjacent_tiles:
+        unit = top_units_by_tile.get(tile_id)
+        if not unit or unit["player"] == new_unit["player"]:
+            continue
+        if unit["card"]["name"] == "Roxy":
+            continue
+        if new_unit["card"]["strength"] > unit["card"]["strength"]:
+            units_to_remove.append(unit)
+
     # Supprimer les unités mangées
     for unit in units_to_remove:
-        game["units"].remove(unit)
+        if unit in game["units"]:
+            game["units"].remove(unit)
+
 
 def apply_card_effects(game, new_unit):
     card_name = new_unit["card"]["name"]
     change_turn = True
     if card_name == "Mastok":
-        # Détruit une tuile adverse adjacente
+        # Détruit une tuile adverse adjacente (le dessus si plusieurs sont superposées)
         map_name = list(map_data.keys())[game["map_id"]]
         links = map_data[map_name]["links"]
         adjacent_tiles = set()
@@ -257,10 +271,16 @@ def apply_card_effects(game, new_unit):
                 adjacent_tiles.add(link[1])
             elif link[1] == new_unit["tile_id"]:
                 adjacent_tiles.add(link[0])
+
+        top_units_by_tile = {}
         for unit in game["units"]:
-            if unit["tile_id"] in adjacent_tiles and unit["player"] != new_unit["player"]:
+            top_units_by_tile[unit["tile_id"]] = unit
+
+        for tile_id in adjacent_tiles:
+            unit = top_units_by_tile.get(tile_id)
+            if unit and unit["player"] != new_unit["player"]:
                 game["units"].remove(unit)
-                break  # Supprime une seule
+                break  # Supprime une seule unité adverse au sommet
     elif card_name == "XB-42":
         opponent = "client" if new_unit["player"] == "server" else "server"
         deck_count = game["card_counts"][opponent].get("deck", 0)

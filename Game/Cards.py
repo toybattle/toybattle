@@ -9,10 +9,10 @@ def init_cards():
     for card in datacards:
         list_cards.append(card)
 
-    pioche_host_cards = list_cards.copy()*3
+    pioche_host_cards = list_cards.copy()
     random.shuffle(pioche_host_cards)
 
-    pioche_client_cards = list_cards.copy()*3
+    pioche_client_cards = list_cards.copy()
     random.shuffle(pioche_client_cards)
     
     return pioche_host_cards, pioche_client_cards
