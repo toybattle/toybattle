@@ -7,55 +7,26 @@ import Cards
 import Effect as Effect
 from Utils import load_path
 
-
-def encode_action(card, tile, units, player_name, datamap, map_name, player_stars):
-    score = card.get("strength", 0) * 2
-    desc = card.get("ability_desc", "")
-    if "Piocher 2 cartes" in desc:
-        score += 4
-    if "Rejouer immédiatement" in desc:
-        score += 3
-    if "Détruit une tuile adverse" in desc or "Supprime une des tuiles adverses" in desc:
-        score += 5
-    if "Pioche une seule tuile" in desc:
-        score += 2
-    if "Va n'importe où" in desc:
-        score += 2
-    if "Roxy" in card.get("name", ""):
-        score += 2
-    if "Kwak" in card.get("name", ""):
-        score += 2
-
-    tile_type = tile.get("type", "normal")
-    if tile_type == "start":
-        score += 1
-    if tile_type == "forteresse":
-        score += 3
-
-    owner = tile.get("player")
-    if owner is not None and owner != player_name:
-        score += 4
-
-    neighbors = [link for link in datamap[map_name]["links"] if tile["id"] in link]
-    neighbor_ids = {n for link in neighbors for n in link if n != tile["id"]}
-    friendly_neighbors = sum(1 for uid in neighbor_ids if any(u["tile_id"] == uid and u["player"] == player_name for u in units))
-    enemy_neighbors = sum(1 for uid in neighbor_ids if any(u["tile_id"] == uid and u["player"] != player_name for u in units))
-    score += friendly_neighbors * 0.5
-    score += enemy_neighbors * 0.7
-
-    for zone in datamap[map_name].get("star_zones", []):
-        if tile["id"] in zone.get("required_tiles", []):
-            score += 2
-
-    star_balance = player_stars.get(player_name, 0) - player_stars.get("player1" if player_name == "player2" else "player2", 0)
-    score -= star_balance * 0.5
-    return score
-
-
 def gameSolo(screen, clock):
+    # --- INITIALISATION DES DONNÉES ---
     WIDTH, HEIGHT = screen.get_size()
-    pygame.display.set_caption("Toy Battle - Solo")
+    
+    # Chargement des maps
+    try:
+        datamap = json.load(open(load_path("data", "map_data.json"), "r"))
+        map_index = random.randint(0, len(datamap) - 1)
+        map_name = list(datamap.keys())[map_index]
+        map_img = pygame.image.load(load_path("assets/map", map_name + ".jpg")).convert()
+        water = pygame.image.load(load_path("assets", "water.png")).convert()
+        pioche_img = pygame.image.load(load_path("assets", "pioche.png")).convert_alpha()
+        pioche_img = pygame.transform.scale(pioche_img, (100, 130))
+    except Exception as e:
+        print(f"Erreur Assets Game: {e}")
+        return "mainMenu"
 
+    pygame.display.set_caption("Toy Battle - Solo vs IA")
+
+    # --- LAYOUT DYNAMIQUE ---
     UI_Y = HEIGHT - 150
     MAP_HEIGHT = int(HEIGHT * 0.72)
     MAP_WIDTH = 0
@@ -79,38 +50,28 @@ def gameSolo(screen, clock):
         MAP_Y = 20
         return map_surface
 
-    try:
-        datamap = json.load(open(load_path("data", "map_data.json"), "r", encoding="utf-8"))
-        map_name = list(datamap.keys())[0]
-        map_img = pygame.image.load(load_path("assets/map", map_name + ".jpg")).convert()
-        pioche_img = pygame.image.load(load_path("assets", "pioche.png")).convert_alpha()
-        pioche_img = pygame.transform.scale(pioche_img, (100, 130))
-    except Exception as e:
-        print(f"Erreur Assets GameSolo: {e}")
-        return "mainMenu"
-
     map_surface = update_layout(WIDTH, HEIGHT, map_img)
 
+    # --- ZONES D'ÉTOILES ---
     star_zones = datamap[map_name].get("star_zones", [])
     claimed_zones = {}
-    player_stars = {"player1": 0, "player2": 0}
+    player_stars = {'player': 0, 'ia': 0}
 
-    deck_host, deck_client = Cards.init_cards()
-    my_hand = Cards.host_cards(deck_host)
-    ai_hand = Cards.client_cards(deck_client)
-    my_deck = deck_host
-    ai_deck = deck_client
-
+    # --- SYSTÈME DE CARTES ---
+    deck_player, deck_ia = Cards.init_cards()
+    player_hand = Cards.host_cards(deck_player)  # Le joueur commence
+    player_deck = deck_player
+    ia_hand = Cards.client_cards(deck_ia)
+    ia_deck = deck_ia
+    
     selected_card_index = None
-    selecting_target = False
-    pending_target_card = None
-    pending_target_owner = None
-    destroy_cost = False
+    current_turn = 'player'  # player ou ia
     victory_start = None
-    game_state = "playing"
-    winner = None
-    can_play_extra = False
-
+    
+    # Plateau de jeu
+    units = []  # Liste des unités: {"tile_id": ..., "card": ..., "player": ...}
+    
+    # Cache des images de cartes
     card_image_cache = {}
 
     def get_card_image(card):
@@ -118,21 +79,20 @@ def gameSolo(screen, clock):
         if img_path not in card_image_cache:
             try:
                 card_image_cache[img_path] = pygame.image.load(load_path("assets/cards", img_path)).convert_alpha()
-            except Exception:
-                surface = pygame.Surface((90, 120), pygame.SRCALPHA)
-                surface.fill((80, 80, 80))
-                card_image_cache[img_path] = surface
+            except:
+                card_image_cache[img_path] = pygame.Surface((90, 120), pygame.SRCALPHA)
+                card_image_cache[img_path].fill((80, 80, 80))
         return card_image_cache[img_path]
 
+    # --- EFFETS ---
     systeme_particules = Effect.SystemeParticules()
-    current_turn = "player1"
-    ai_wait_frames = 0
-    frame_count = 0
-
+    
+    # --- FONCTIONS DE JEU ---
+    
     def get_screen_pos(tile_id):
         tile = next(t for t in datamap[map_name]["tiles"] if t["id"] == tile_id)
-        tx = MAP_X + int((tile["x"] + tile["w"] / 2) * MAP_WIDTH)
-        ty = MAP_Y + int((tile["y"] + tile["h"] / 2) * MAP_HEIGHT)
+        tx = MAP_X + int((tile["x"] + tile["w"]/2) * MAP_WIDTH)
+        ty = MAP_Y + int((tile["y"] + tile["h"]/2) * MAP_HEIGHT)
         return tx, ty
 
     def can_cover(new_card, occupying_card):
@@ -144,28 +104,35 @@ def gameSolo(screen, clock):
             return True
         if "Roxy" in occupying_name:
             return False
-        return new_card.get("strength", 0) > occupying_card.get("strength", 0)
+        new_strength = new_card.get("strength", 0)
+        occupying_strength = occupying_card.get("strength", 0)
+        return new_strength > occupying_strength
 
-    def get_valid_tiles(units, card, player_name="player1"):
+    def get_valid_tiles(units, card, player_name):
         occupied_ids = [u["tile_id"] for u in units]
         unit_on_tile = {u["tile_id"]: u for u in units}
+        tile_by_id = {t["id"]: t for t in datamap[map_name]["tiles"]}
         tile_graph = {t["id"]: set() for t in datamap[map_name]["tiles"]}
         for link in datamap[map_name]["links"]:
             tile_graph[link[0]].add(link[1])
             tile_graph[link[1]].add(link[0])
+        valid_ids = set()
+        
+        player_side = "player1" if player_name == 'player' else "player2"
 
         def is_own_fortress(tile_id):
-            tile = next((t for t in datamap[map_name]["tiles"] if t["id"] == tile_id), None)
-            return bool(tile and tile.get("type") == "forteresse" and tile.get("player") == player_name)
+            tile = tile_by_id.get(tile_id)
+            return bool(tile and tile.get("type") == "forteresse" and tile.get("player") == player_side)
 
         def has_path_to_tile(target_tile_id):
             own_tiles = {u["tile_id"] for u in units if u["player"] == player_name}
             start_tiles = {
                 t["id"] for t in datamap[map_name]["tiles"]
-                if t["type"] == "start" and t.get("player") == player_name and t["id"] in own_tiles
+                if t["type"] == "start" and t.get("player") == player_side and t["id"] in own_tiles
             }
             if not start_tiles:
                 return False
+
             visited = set(start_tiles)
             queue = list(start_tiles)
             while queue:
@@ -178,11 +145,18 @@ def gameSolo(screen, clock):
                         queue.append(neighbor)
             return False
 
-        valid_ids = set()
+        def can_place_on_tile(tid):
+            if is_own_fortress(tid):
+                return False
+            tile = tile_by_id.get(tid)
+            if tile and tile.get("type") == "forteresse" and tile.get("player") != player_side:
+                return has_path_to_tile(tid)
+            return True
+        
         for tile in datamap[map_name]["tiles"]:
-            if tile["type"] == "start" and tile.get("player") == player_name:
+            if tile["type"] == "start" and tile["player"] == player_side:
                 valid_ids.add(tile["id"])
-
+        
         for u in units:
             if u["player"] == player_name:
                 for link in datamap[map_name]["links"]:
@@ -192,54 +166,283 @@ def gameSolo(screen, clock):
                     elif link[1] == u["tile_id"]:
                         if not is_own_fortress(link[0]):
                             valid_ids.add(link[0])
-
+        
+        standard_valid = set(tid for tid in valid_ids if not is_own_fortress(tid))
+        
         if "Crochet" in card.get("name", ""):
-            valid_ids = {t["id"] for t in datamap[map_name]["tiles"] if not is_own_fortress(t["id"])}
-
+            valid_ids = set(t["id"] for t in datamap[map_name]["tiles"] if not is_own_fortress(t["id"]))
+        elif "Kwak" in card.get("name", ""):
+            valid_ids = standard_valid
+        else:
+            valid_ids = standard_valid
+        
         final_valid = set()
         for tid in valid_ids:
-            tile = next((t for t in datamap[map_name]["tiles"] if t["id"] == tid), None)
-            if tile and tile.get("type") == "forteresse" and tile.get("player") != player_name:
-                if not has_path_to_tile(tid):
-                    continue
+            if not can_place_on_tile(tid):
+                continue
             if tid not in occupied_ids:
                 final_valid.add(tid)
             else:
                 occupying_unit = unit_on_tile[tid]
-                if occupying_unit["player"] != player_name and can_cover(card, occupying_unit["card"]):
-                    final_valid.add(tid)
+                if occupying_unit["player"] != player_name:
+                    if can_cover(card, occupying_unit["card"]):
+                        final_valid.add(tid)
         return list(final_valid)
 
-    def execute_ability(card, owner, units, hand, deck):
-        nonlocal selecting_target, destroy_cost, pending_target_card, pending_target_owner, can_play_extra
-        desc = card.get("ability_desc", "")
-        if "Piocher 2 cartes" in desc:
-            draw_count = min(2, len(deck), max(0, 8 - len(hand)))
+    def place_unit(tile_id, card_data, player_name):
+        nonlocal current_turn
+        new_unit = {
+            "tile_id": tile_id,
+            "card": card_data,
+            "player": player_name
+        }
+        units.append(new_unit)
+        
+        # Supprimer l'unité recouverte
+        for unit in units[:]:
+            if unit is not new_unit and unit["tile_id"] == tile_id and unit["player"] != player_name:
+                if can_cover(card_data, unit["card"]):
+                    units.remove(unit)
+        
+        # Résoudre les batailles
+        resolve_battles(new_unit)
+        
+        # Appliquer les effets
+        change_turn = apply_card_effects(card_data, player_name, tile_id)
+        
+        # Vérifier victoire
+        if check_victory(player_name):
+            return True
+        
+        if change_turn:
+            current_turn = 'ia' if player_name == 'player' else 'player'
+        
+        return False
+
+    def resolve_battles(new_unit):
+        card_name = new_unit["card"]["name"]
+        card_strength = new_unit["card"].get("strength", 0)
+        links = datamap[map_name]["links"]
+        
+        if "Roxy" in card_name:
+            return
+        
+        if "Mastok" in card_name:
+            return
+        
+        if "Crochet" in card_name:
+            return
+        
+        # Trouver les unités adjacentes
+        adjacent_tiles = set()
+        for link in links:
+            if link[0] == new_unit["tile_id"]:
+                adjacent_tiles.add(link[1])
+            elif link[1] == new_unit["tile_id"]:
+                adjacent_tiles.add(link[0])
+        
+        top_units_by_tile = {}
+        for unit in units:
+            top_units_by_tile[unit["tile_id"]] = unit
+        
+        units_to_remove = []
+        for tile_id in adjacent_tiles:
+            unit = top_units_by_tile.get(tile_id)
+            if not unit or unit["player"] == new_unit["player"]:
+                continue
+            
+            if "Roxy" in unit["card"].get("name", ""):
+                continue
+            
+            if card_strength > unit["card"].get("strength", 0):
+                units_to_remove.append(unit)
+        
+        for unit in units_to_remove:
+            if unit in units:
+                units.remove(unit)
+
+    def apply_card_effects(card_data, player_name, tile_id):
+        card_name = card_data.get("name", "")
+        change_turn = True
+        
+        if "Cap'taine" in card_name or "Captain" in card_name:
+            change_turn = False
+        
+        elif "Skully" in card_name:
+            draw_count = min(2, len(player_deck if player_name == 'player' else ia_deck), 
+                           max(0, 8 - len(player_hand if player_name == 'player' else ia_hand)))
             for _ in range(draw_count):
-                hand.append(deck.pop(0))
-        elif "Pioche une seule tuile" in desc:
+                if player_name == 'player' and player_deck:
+                    player_hand.append(player_deck.pop(0))
+                elif player_name == 'ia' and ia_deck:
+                    ia_hand.append(ia_deck.pop(0))
+        
+        elif "Star" in card_name:
+            hand = player_hand if player_name == 'player' else ia_hand
+            deck = player_deck if player_name == 'player' else ia_deck
             if deck and len(hand) < 8:
                 hand.append(deck.pop(0))
-        elif "Rejouer immédiatement" in desc:
-            can_play_extra = True
-        elif "Détruit une tuile adverse" in desc or "Supprime une des tuiles adverses" in desc:
-            selecting_target = True
-            pending_target_card = card
-            pending_target_owner = owner
-            if "supprime la tuile du dessus" in desc:
-                destroy_cost = True
-        return None
+        
+        elif "XB-42" in card_name or "XB42" in card_name:
+            opponent_hand = ia_hand if player_name == 'player' else player_hand
+            if opponent_hand:
+                random_index = random.randint(0, len(opponent_hand) - 1)
+                opponent_hand.pop(random_index)
+        
+        elif "Mastok" in card_name:
+            # Trouver les cibles adjacentes
+            adjacent_ids = set()
+            for link in datamap[map_name]["links"]:
+                if tile_id in link:
+                    adjacent_ids.add(link[0] if link[1] == tile_id else link[1])
+            
+            valid_targets = [u for u in units if u["player"] != player_name and u["tile_id"] in adjacent_ids]
+            if valid_targets:
+                target = random.choice(valid_targets)
+                units.remove(target)
+        
+        return change_turn
+
+    def check_victory(player_name):
+        # Vérifier victoire par forteresse
+        for unit in units:
+            if unit["player"] != player_name:
+                continue
+            for tile in datamap[map_name]["tiles"]:
+                if tile["id"] == unit["tile_id"] and tile.get("type") == "forteresse":
+                    opponent_side = "player2" if player_name == 'player' else "player1"
+                    if tile.get("player") == opponent_side:
+                        if has_path_to_fortress(unit["tile_id"], player_name):
+                            return True
+        
+        # Vérifier victoire par étoiles
+        player_star_count = get_player_star_count(player_name)
+        required_stars = datamap[map_name].get("num_stars", 7)
+        if player_star_count >= required_stars:
+            return True
+        
+        return False
+
+    def has_path_to_fortress(fortress_tile_id, player_name):
+        owned_tiles = {u["tile_id"] for u in units if u["player"] == player_name}
+        player_side = "player1" if player_name == 'player' else "player2"
+        
+        start_tiles = {
+            t["id"] for t in datamap[map_name]["tiles"]
+            if t["type"] == "start" and t.get("player") == player_side and t["id"] in owned_tiles
+        }
+        
+        if not start_tiles:
+            return False
+        
+        tile_graph = {t["id"]: set() for t in datamap[map_name]["tiles"]}
+        for link in datamap[map_name]["links"]:
+            tile_graph[link[0]].add(link[1])
+            tile_graph[link[1]].add(link[0])
+        
+        visited = set(start_tiles)
+        queue = list(start_tiles)
+        while queue:
+            current = queue.pop(0)
+            for neighbor in tile_graph.get(current, set()):
+                if neighbor == fortress_tile_id:
+                    return True
+                if neighbor in owned_tiles and neighbor not in visited:
+                    visited.add(neighbor)
+                    queue.append(neighbor)
+        return False
+
+    def get_player_star_count(player_name):
+        tile_owners = {u["tile_id"]: u["player"] for u in units}
+        count = 0
+        for zone in star_zones:
+            req_tiles = zone.get("required_tiles", [])
+            if not req_tiles:
+                continue
+            owner = tile_owners.get(req_tiles[0])
+            if owner and all(tile_owners.get(tid) == owner for tid in req_tiles):
+                if owner == player_name:
+                    count += 1
+        return count
+
+    def update_star_zones():
+        nonlocal claimed_zones, player_stars
+        tile_owners = {u["tile_id"]: u["player"] for u in units}
+        
+        for idx, zone in enumerate(star_zones):
+            if idx not in claimed_zones:
+                req_tiles = zone.get("required_tiles", [])
+                if not req_tiles:
+                    continue
+                
+                first_tile_owner = tile_owners.get(req_tiles[0])
+                if first_tile_owner:
+                    if all(tile_owners.get(t) == first_tile_owner for t in req_tiles):
+                        claimed_zones[idx] = first_tile_owner
+                        player_stars[first_tile_owner] += 1
+                        
+                        # Effet visuel
+                        zx = MAP_X + int((zone["area"]["x"] + zone["area"]["w"]/2) * MAP_WIDTH)
+                        zy = MAP_Y + int((zone["area"]["y"] + zone["area"]["h"]/2) * MAP_HEIGHT)
+                        systeme_particules.create_particles(zx, zy, nombre=60)
+
+    def ia_turn():
+        nonlocal current_turn
+        time.sleep(0.5)  # Petit délai pour que l'IA paraisse naturelle
+        
+        if not ia_hand:
+            # Piocher si possible
+            if ia_deck:
+                draw_count = min(2, len(ia_deck), 8 - len(ia_hand))
+                for _ in range(draw_count):
+                    ia_hand.append(ia_deck.pop(0))
+            else:
+                current_turn = 'player'
+                return
+        
+        # Sélectionner une carte aléatoire
+        card_index = random.randint(0, len(ia_hand) - 1)
+        card = ia_hand[card_index]
+        
+        # Trouver les tuiles valides
+        valid_tiles = get_valid_tiles(units, card, 'ia')
+        
+        if valid_tiles:
+            # Choisir une tuile aléatoire
+            tile_id = random.choice(valid_tiles)
+            
+            # Placer l'unité
+            victory = place_unit(tile_id, card, 'ia')
+            
+            # Retirer la carte de la main
+            ia_hand.pop(card_index)
+            
+            # Effet visuel
+            x, y = get_screen_pos(tile_id)
+            systeme_particules.create_particles(x, y, nombre=40)
+            
+            if victory:
+                return
+            
+            # Pioche après avoir joué (si main < 8)
+            if len(ia_hand) < 8 and ia_deck:
+                draw_count = min(2, len(ia_deck), 8 - len(ia_hand))
+                for _ in range(draw_count):
+                    ia_hand.append(ia_deck.pop(0))
+        else:
+            # Si aucune tuile valide, l'IA pioche et passe son tour
+            if ia_deck and len(ia_hand) < 8:
+                draw_count = min(2, len(ia_deck), 8 - len(ia_hand))
+                for _ in range(draw_count):
+                    ia_hand.append(ia_deck.pop(0))
+            current_turn = 'player'
 
     class Unit:
         def __init__(self, tile_id, card_data, owner):
             self.tile_id = tile_id
             self.card_data = card_data
             self.owner = owner
-            try:
-                self.image = pygame.image.load(load_path("assets/cards", card_data["image_path"])) .convert_alpha()
-            except Exception:
-                self.image = pygame.Surface((90, 120), pygame.SRCALPHA)
-                self.image.fill((80, 80, 80))
+            self.image = get_card_image(card_data)
 
         def draw(self, surf, highlight=False):
             self.x, self.y = get_screen_pos(self.tile_id)
@@ -252,271 +455,209 @@ def gameSolo(screen, clock):
                 height = max(32, min(tile_h, int(tile_h * scale * 1.1)))
             else:
                 width, height = 60, 80
+
             image = pygame.transform.scale(self.image, (width, height))
             rect = image.get_rect(center=(self.x, self.y))
             surf.blit(image, rect)
             if highlight:
-                highlight_rect = rect.inflate(12, 12)
-                pygame.draw.rect(surf, (255, 80, 80), highlight_rect, 4, border_radius=10)
-            border = (255, 215, 0) if self.owner == "player1" else (220, 80, 80)
-            pygame.draw.rect(surf, border, rect.inflate(6, 6), 3, border_radius=10)
+                pygame.draw.rect(surf, (255, 80, 80), rect.inflate(10, 10), 4, border_radius=10)
 
-    def claim_star_zones(units):
-        nonlocal player_stars
-        tile_owners = {u["tile_id"]: u["player"] for u in units}
-        for idx, zone in enumerate(star_zones):
-            if idx in claimed_zones:
-                continue
-            req_tiles = zone.get("required_tiles", [])
-            if not req_tiles:
-                continue
-            first_owner = tile_owners.get(req_tiles[0])
-            if first_owner and all(tile_owners.get(t) == first_owner for t in req_tiles):
-                claimed_zones[idx] = first_owner
-                player_stars[first_owner] += 1
-                zx = MAP_X + int((zone["area"]["x"] + zone["area"]["w"] / 2) * MAP_WIDTH)
-                zy = MAP_Y + int((zone["area"]["y"] + zone["area"]["h"] / 2) * MAP_HEIGHT)
-                systeme_particules.create_particles(zx, zy, nombre=80)
+            if self.owner == 'player':
+                outline_rect = rect.inflate(8, 8)
+                pygame.draw.rect(surf, (255, 215, 0), outline_rect, 3, border_radius=10)
 
-    def game_over_check(units):
-        if any(player_stars[p] >= 4 for p in player_stars):
-            return True
-        if not my_deck and not ai_deck and not my_hand and not ai_hand:
-            return True
-        return False
-
-    def decide_winner():
-        if player_stars["player1"] > player_stars["player2"]:
-            return "player1"
-        if player_stars["player2"] > player_stars["player1"]:
-            return "player2"
-        return "draw"
-
-    def remove_enemy_unit(owner, units):
-        enemy_units = [u for u in units if u["player"] != owner]
-        if not enemy_units:
-            return False
-        strongest = max(enemy_units, key=lambda u: u["card"].get("strength", 0))
-        units.remove(strongest)
-        return True
-
-    def get_action_score(card, tile_id, units, player_name):
-        tile = next((t for t in datamap[map_name]["tiles"] if t["id"] == tile_id), None)
-        if tile is None:
-            return float("-inf")
-        return encode_action(card, tile, units, player_name, datamap, map_name, player_stars)
-
-    def ai_take_turn(units):
-        nonlocal current_turn, can_play_extra, ai_wait_frames
-        if not ai_hand:
-            if ai_deck and len(ai_hand) < 8:
-                ai_hand.append(ai_deck.pop(0))
-            current_turn = "player1"
-            return
-
-        best_move = None
-        for idx, card in enumerate(ai_hand):
-            valid_tiles = get_valid_tiles(units, card, "player2")
-            for tile_id in valid_tiles:
-                score = get_action_score(card, tile_id, units, "player2")
-                if best_move is None or score > best_move[0]:
-                    best_move = (score, idx, card, tile_id)
-
-        if best_move is None:
-            if ai_deck and len(ai_hand) < 8:
-                ai_hand.append(ai_deck.pop(0))
-            current_turn = "player1"
-            return
-
-        _, card_index, card, tile_id = best_move
-        occupying = next((u for u in units if u["tile_id"] == tile_id), None)
-        if occupying and occupying["player"] != "player2" and can_cover(card, occupying["card"]):
-            units.remove(occupying)
-
-        units.append({"tile_id": tile_id, "card": card, "player": "player2"})
-        ai_hand.pop(card_index)
-        execute_ability(card, "player2", units, ai_hand, ai_deck)
-        x, y = get_screen_pos(tile_id)
-        systeme_particules.create_particles(x, y, nombre=40)
-
-        if pending_target_card and pending_target_owner == "player2":
-            remove_enemy_unit("player2", units)
-            if destroy_cost and ai_hand:
-                ai_hand.pop(0)
-            reset_pending_target()
-
-        if can_play_extra:
-            can_play_extra = False
-            current_turn = "player2"
-            ai_wait_frames = 30
-        else:
-            current_turn = "player1"
-
-    def reset_pending_target():
-        nonlocal selecting_target, pending_target_card, pending_target_owner, destroy_cost
-        selecting_target = False
-        pending_target_card = None
-        pending_target_owner = None
-        destroy_cost = False
-
-    units = []
-
+    # --- BOUCLE PRINCIPALE ---
+    last_ia_time = 0
+    ia_delay = 0.5  # Délai avant que l'IA joue
+    
     while True:
-        frame_count += 1
-        if game_state == "playing":
-            claim_star_zones(units)
-            if game_over_check(units):
-                game_state = "finished"
-                winner = decide_winner()
-                victory_start = time.time()
-
+        current_time = time.time()
+        
+        # Mettre à jour les zones d'étoiles
+        update_star_zones()
+        
+        # Gestion de l'IA
+        if current_turn == 'ia' and not victory_start:
+            if last_ia_time == 0:
+                last_ia_time = current_time
+            elif current_time - last_ia_time >= ia_delay:
+                ia_turn()
+                last_ia_time = 0
+        
+        # --- GESTION DES ÉVÉNEMENTS ---
         screen.fill((30, 30, 35))
         mouse_pos = pygame.mouse.get_pos()
         ui_font = pygame.font.SysFont("arial", 24)
-        title_font = pygame.font.SysFont("arial", 28, bold=True)
-
+        
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
+                return "mainMenu"
+                
             if event.type == pygame.VIDEORESIZE:
-                screen = pygame.display.set_mode((max(760, event.w), max(620, event.h)), pygame.RESIZABLE)
-                map_surface = update_layout(screen.get_width(), screen.get_height(), map_img)
-            if event.type == pygame.MOUSEBUTTONDOWN and current_turn == "player1" and game_state == "playing":
-                if selecting_target:
-                    for u in units:
-                        if u["player"] == "player2":
-                            x, y = get_screen_pos(u["tile_id"])
-                            rect = pygame.Rect(x - 30, y - 40, 60, 80)
-                            if rect.collidepoint(mouse_pos):
-                                units.remove(u)
-                                if destroy_cost and my_hand:
-                                    my_hand.pop(0)
-                                reset_pending_target()
-                                if can_play_extra:
-                                    current_turn = "player1"
-                                else:
-                                    current_turn = "player2"
-                                break
-                    continue
+                map_surface = update_layout(event.w, event.h, map_img)
 
-                for i in range(len(my_hand)):
-                    rect = pygame.Rect(WIDTH // 2 - 150 + i * 110, UI_Y + 20, 90, 120)
+            if event.type == pygame.MOUSEBUTTONDOWN and current_turn == 'player' and not victory_start:
+                # Sélection de carte dans la main
+                for i in range(len(player_hand)):
+                    rect = pygame.Rect(WIDTH//2 - 150 + i*110, UI_Y + 20, 90, 120)
                     if rect.collidepoint(mouse_pos):
                         selected_card_index = i
-
+                
+                # Placement sur la Map
                 if selected_card_index is not None:
-                    current_card = my_hand[selected_card_index]
-                    valid_tiles = get_valid_tiles(units, current_card, "player1")
+                    current_card = player_hand[selected_card_index]
+                    valid_ids = get_valid_tiles(units, current_card, 'player')
+                    
                     for tile in datamap[map_name]["tiles"]:
-                        tr = pygame.Rect(MAP_X + tile["x"] * MAP_WIDTH, MAP_Y + tile["y"] * MAP_HEIGHT,
-                                         tile["w"] * MAP_WIDTH, tile["h"] * MAP_HEIGHT)
-                        if tr.collidepoint(mouse_pos) and tile["id"] in valid_tiles:
-                            occupying = next((u for u in units if u["tile_id"] == tile["id"]), None)
-                            if occupying and occupying["player"] != "player1" and not can_cover(current_card, occupying["card"]):
-                                continue
-                            if occupying and occupying["player"] != "player1":
-                                units.remove(occupying)
-                            units.append({"tile_id": tile["id"], "card": current_card, "player": "player1"})
-                            my_hand.pop(selected_card_index)
-                            execute_ability(current_card, "player1", units, my_hand, my_deck)
+                        tr = pygame.Rect(MAP_X + tile["x"]*MAP_WIDTH, MAP_Y + tile["y"]*MAP_HEIGHT, 
+                                       tile["w"]*MAP_WIDTH, tile["h"]*MAP_HEIGHT)
+                        
+                        if tr.collidepoint(mouse_pos) and tile["id"] in valid_ids:
+                            victory = place_unit(tile["id"], player_hand[selected_card_index], 'player')
+                            
                             x, y = get_screen_pos(tile["id"])
                             systeme_particules.create_particles(x, y, nombre=40)
+                            
+                            player_hand.pop(selected_card_index)
                             selected_card_index = None
-                            if not selecting_target:
-                                if can_play_extra:
-                                    can_play_extra = False
-                                    current_turn = "player1"
-                                else:
-                                    current_turn = "player2"
+                            
+                            if victory:
+                                break
+                            
+                            # Pioche après avoir joué
+                            if len(player_hand) < 8 and player_deck:
+                                draw_count = min(2, len(player_deck), 8 - len(player_hand))
+                                for _ in range(draw_count):
+                                    player_hand.append(player_deck.pop(0))
+                            
                             break
-
+                
+                # Click sur la pioche
                 pioche_rect = pygame.Rect(MAP_X + MAP_WIDTH + 20, MAP_Y + 300, 100, 130)
-                if pioche_rect.collidepoint(mouse_pos) and len(my_hand) < 8 and my_deck:
-                    draw_count = min(2, len(my_deck), 8 - len(my_hand))
+                if (pioche_rect.collidepoint(mouse_pos) and 
+                    current_turn == 'player' and 
+                    not victory_start and 
+                    len(player_hand) < 8):
+                    draw_count = min(2, len(player_deck), 8 - len(player_hand))
                     for _ in range(draw_count):
-                        my_hand.append(my_deck.pop(0))
-                    current_turn = "player2"
+                        player_hand.append(player_deck.pop(0))
 
-        if current_turn == "player2" and game_state == "playing":
-            ai_wait_frames = max(0, ai_wait_frames - 1)
-            if ai_wait_frames == 0:
-                ai_take_turn(units)
-
+        # --- DESSIN ---
         screen.blit(map_surface, (MAP_X, MAP_Y))
 
-        star_font = pygame.font.SysFont("arial", 36)
+        # Dessiner les zones d'étoiles non capturées
+        star_font = pygame.font.SysFont("arial", 40)
         for idx, zone in enumerate(star_zones):
             if idx not in claimed_zones:
                 zx = MAP_X + int(zone["area"]["x"] * MAP_WIDTH)
                 zy = MAP_Y + int(zone["area"]["y"] * MAP_HEIGHT)
                 zw = int(zone["area"]["w"] * MAP_WIDTH)
                 zh = int(zone["area"]["h"] * MAP_HEIGHT)
+                
                 pygame.draw.rect(screen, (180, 100, 255), (zx, zy, zw, zh), 3, border_radius=8)
                 star_char = star_font.render("★", True, (180, 100, 255))
-                screen.blit(star_char, (zx + zw // 2 - star_char.get_width() // 2, zy + zh // 2 - star_char.get_height() // 2))
+                cx = zx + zw//2 - star_char.get_width()//2
+                cy = zy + zh//2 - star_char.get_height()//2
+                screen.blit(star_char, (cx, cy))
 
-        for u in units:
-            unit = Unit(u["tile_id"], u["card"], u["player"])
-            unit.draw(screen, highlight=(selecting_target and u["player"] != "player1"))
+        # Vérifier victoire
+        if victory_start is None:
+            winner = None
+            if check_victory('player'):
+                winner = 'player'
+                victory_start = current_time
+                selected_card_index = None
+            elif check_victory('ia'):
+                winner = 'ia'
+                victory_start = current_time
+        
+        # Affichage fin de jeu
+        if victory_start:
+            if winner == 'player':
+                result_text = "Victoire !"
+            else:
+                result_text = "Défaite..."
+            result_render = ui_font.render(result_text, True, (255, 220, 120))
+            screen.blit(result_render, (WIDTH//2 - result_render.get_width()//2, UI_Y - 80))
+            if current_time - victory_start > 5:
+                return "mainMenu"
 
-        pygame.draw.rect(screen, (14, 14, 18), (0, UI_Y - 4, WIDTH, 154), border_radius=8)
-        pygame.draw.rect(screen, (70, 70, 90), (0, UI_Y - 4, WIDTH, 154), 2, border_radius=8)
-
-        if game_state == "playing":
-            turn_text = "Votre tour" if current_turn == "player1" else "Tour de l'IA"
-        else:
-            turn_text = "Fin de la partie"
-        screen.blit(title_font.render(turn_text, True, (230, 230, 240)), (20, UI_Y - 26))
-        screen.blit(ui_font.render(f"Main: {len(my_hand)} cartes  Deck: {len(my_deck)}", True, (210, 210, 220)), (20, UI_Y + 20))
-        screen.blit(ui_font.render(f"IA - Main: {len(ai_hand)} cartes  Deck: {len(ai_deck)}", True, (210, 210, 220)), (20, UI_Y + 50))
-        screen.blit(ui_font.render(f"Etoiles: Vous {player_stars['player1']} - IA {player_stars['player2']}", True, (255, 215, 0)), (20, UI_Y + 80))
-
-        if selected_card_index is not None and current_turn == "player1":
-            card = my_hand[selected_card_index]
-            desc = ui_font.render(card.get("ability_desc", ""), True, (255, 230, 180))
-            screen.blit(desc, (20, UI_Y + 110))
-            valid_tiles = get_valid_tiles(units, card, "player1")
+        # Surbrillance des cases valides
+        if selected_card_index is not None and current_turn == 'player' and not victory_start:
+            current_card = player_hand[selected_card_index]
+            valid_ids = get_valid_tiles(units, current_card, 'player')
             for tile in datamap[map_name]["tiles"]:
-                if tile["id"] in valid_tiles:
+                if tile["id"] in valid_ids:
                     sx = MAP_X + int(tile["x"] * MAP_WIDTH)
                     sy = MAP_Y + int(tile["y"] * MAP_HEIGHT)
                     sw = int(tile["w"] * MAP_WIDTH)
                     sh = int(tile["h"] * MAP_HEIGHT)
-                    overlay = pygame.Surface((sw, sh), pygame.SRCALPHA)
-                    color = (0, 150, 255, 100) if "Crochet" in card.get("name", "") else (0, 255, 100, 100)
-                    pygame.draw.rect(overlay, color, (0, 0, sw, sh), border_radius=6)
-                    screen.blit(overlay, (sx, sy))
+                    s = pygame.Surface((sw, sh), pygame.SRCALPHA)
+                    color = (0, 150, 255, 150) if "Crochet" in current_card.get("name", "") else (0, 255, 100, 150)
+                    pygame.draw.rect(s, color, (0, 0, sw, sh), border_radius=5)
+                    screen.blit(s, (sx, sy))
 
-        for i, card in enumerate(my_hand):
-            cx = WIDTH // 2 - 150 + i * 110
+        # Dessiner les unités
+        for u_data in units:
+            u = Unit(u_data["tile_id"], u_data["card"], u_data["player"])
+            u.draw(screen)
+
+        # UI bas du jeu
+        pygame.draw.rect(screen, (14, 14, 18), (0, UI_Y - 4, WIDTH, 154), border_radius=8)
+        pygame.draw.rect(screen, (70, 70, 90), (0, UI_Y - 4, WIDTH, 154), 2, border_radius=8)
+
+        turn_text = "Votre tour !" if current_turn == 'player' else "Tour de l'IA..."
+        if victory_start:
+            turn_text = "Partie terminée"
+        
+        title = ui_font.render(f"Main ({len(player_hand)} cartes) - Deck: {len(player_deck)}", True, (230, 230, 240))
+        turn = ui_font.render(turn_text, True, (210, 210, 220))
+        screen.blit(title, (20, UI_Y - 26))
+        screen.blit(turn, (20, UI_Y - 26 + title.get_height()))
+
+        # Dessiner les cartes du joueur
+        for i, card in enumerate(player_hand):
+            cx = WIDTH//2 - 150 + i*110
             cy = UI_Y + 20
-            pygame.draw.rect(screen, (34, 34, 40), (cx - 5, cy - 5, 100, 130), border_radius=8)
-            img = get_card_image(card)
-            screen.blit(pygame.transform.scale(img, (90, 120)), (cx, cy))
-            if i == selected_card_index:
-                pygame.draw.rect(screen, (255, 215, 0), (cx - 5, cy - 5, 100, 130), 3, border_radius=8)
+            is_selected = (i == selected_card_index)
+            slot_color = (34, 34, 40) if not is_selected else (40, 50, 70)
+            pygame.draw.rect(screen, slot_color, (cx-5, cy-5, 100, 130), border_radius=8)
+            try:
+                img = get_card_image(card)
+                scaled = pygame.transform.scale(img, (90, 120))
+                screen.blit(scaled, (cx, cy))
+            except:
+                pygame.draw.rect(screen, (80, 80, 80), (cx, cy, 90, 120), border_radius=8)
+            if is_selected:
+                pygame.draw.rect(screen, (255, 215, 0), (cx-5, cy-5, 100, 130), 3, border_radius=8)
 
+        # Description de la carte sélectionnée
+        if selected_card_index is not None and not victory_start:
+            card = player_hand[selected_card_index]
+            desc_text = ui_font.render(card.get("ability_desc", "No description"), True, (255, 230, 180))
+            screen.blit(desc_text, (20, UI_Y + 100))
+
+        # Pioche
         pygame.draw.rect(screen, (20, 20, 25), (MAP_X + MAP_WIDTH + 10, MAP_Y + 290, 120, 150), border_radius=8)
         screen.blit(pioche_img, (MAP_X + MAP_WIDTH + 20, MAP_Y + 300))
 
-        if selecting_target:
-            prompt = ui_font.render("Sélectionnez une tuile adverse à détruire", True, (255, 120, 120))
-            screen.blit(prompt, (WIDTH // 2 - prompt.get_width() // 2, UI_Y - 80))
+        # UI des étoiles
+        stars_panel_rect = pygame.Rect((MAP_X - 160), (MAP_Y + 290), 150, 150)
+        pygame.draw.rect(screen, (34, 34, 40), stars_panel_rect, border_radius=8)
+        pygame.draw.rect(screen, (255, 215, 0), stars_panel_rect, 2, border_radius=8)
+        
+        my_stars_txt = ui_font.render(f"Mes étoiles : {player_stars['player']} ★", True, (255, 215, 0))
+        enemy_stars_txt = ui_font.render(f"IA : {player_stars['ia']} ★", True, (150, 150, 160))
+        
+        screen.blit(my_stars_txt, (stars_panel_rect.x + 10, stars_panel_rect.y + 40))
+        screen.blit(enemy_stars_txt, (stars_panel_rect.x + 10, stars_panel_rect.y + 80))
 
-        if game_state == "finished":
-            if winner == "player1":
-                result = "Victoire !"
-            elif winner == "player2":
-                result = "Défaite..."
-            else:
-                result = "Match nul"
-            result_render = title_font.render(result, True, (255, 220, 120))
-            screen.blit(result_render, (WIDTH // 2 - result_render.get_width() // 2, UI_Y - 80))
-            if time.time() - victory_start > 5:
-                return "mainMenu"
+        # Afficher le nombre de cartes de l'IA
+        ia_info = ui_font.render(f"IA: {len(ia_hand)} cartes", True, (200, 200, 200))
+        screen.blit(ia_info, (MAP_X + MAP_WIDTH - 100, MAP_Y + 10))
 
         systeme_particules.update()
         systeme_particules.draw(screen)
+
         pygame.display.flip()
         clock.tick(60)

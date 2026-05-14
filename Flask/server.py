@@ -435,12 +435,26 @@ def apply_card_effects(game, new_unit):
     
     # Mastok: Sélection de cible après placement (détruit une carte adjacente ennemie)
     elif "Mastok" in card_name:
-        game["pending_target"] = {
-            "player": player,
-            "tile_id": new_unit["tile_id"],
-            "card": new_unit["card"]
-        }
-        change_turn = False  # Le tour ne change pas tant que la cible n'est pas sélectionnée
+        # Chercher les cibles adjacentes valides
+        map_name = list(map_data.keys())[game["map_id"]]
+        placed_tile_id = new_unit["tile_id"]
+        
+        adjacent_ids = {link[1] if link[0] == placed_tile_id else link[0] 
+                       for link in map_data[map_name].get("links", []) 
+                       if placed_tile_id in link}
+        
+        valid_targets = [u for u in game["units"] 
+                        if u["player"] != player and u["tile_id"] in adjacent_ids]
+        
+        if valid_targets:
+            # Il y a des cibles, on attend le ciblage
+            game["pending_target"] = {
+                "player": player,
+                "tile_id": placed_tile_id,
+                "card": new_unit["card"]
+            }
+            change_turn = False
+        # else: pas de cibles, le tour change (change_turn reste True)
     
     return change_turn
 
