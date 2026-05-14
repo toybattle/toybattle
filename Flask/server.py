@@ -32,11 +32,12 @@ def create_game_struct(map_id):
         "winner": None,
         "map_id": map_id,
         "units": [],  # Liste des unités posées: {"tile_id": ..., "card": ..., "player": ...}
-        "card_counts": {
+            "card_counts": {
             "server": {"hand": 0, "deck": 0},
             "client": {"hand": 0, "deck": 0}
         },
-        "pending_deck_penalty": None
+        "pending_deck_penalty": None,
+        "pending_hand_penalty": None
     }
 
 
@@ -283,10 +284,10 @@ def apply_card_effects(game, new_unit):
                 break  # Supprime une seule unité adverse au sommet
     elif card_name == "XB-42":
         opponent = "client" if new_unit["player"] == "server" else "server"
-        deck_count = game["card_counts"][opponent].get("deck", 0)
-        if deck_count > 0:
-            game["card_counts"][opponent]["deck"] = deck_count - 1
-            game["pending_deck_penalty"] = opponent
+        hand_count = game["card_counts"][opponent].get("hand", 0)
+        if hand_count > 0:
+            game["card_counts"][opponent]["hand"] = hand_count - 1
+            game["pending_hand_penalty"] = opponent
     elif card_name == "Cap'taine":
         # Rejouer immédiatement
         change_turn = False
@@ -347,6 +348,8 @@ def resolve_deck_penalty():
     game = games[game_id]
     if game.get("pending_deck_penalty") == player:
         game["pending_deck_penalty"] = None
+    if game.get("pending_hand_penalty") == player:
+        game["pending_hand_penalty"] = None
     return jsonify({"message": "penalty resolved", "game": game})
 
 # Voir l'état du jeu (Polling)

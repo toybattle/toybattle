@@ -167,9 +167,9 @@ def gameMulti(screen, clock, gamedata):
             pass
 
     def handle_pending_penalty():
-        if game_state.get("pending_deck_penalty") == my_player_name:
-            if my_deck:
-                my_deck.pop(random.randrange(len(my_deck)))
+        if game_state.get("pending_hand_penalty") == my_player_name:
+            if my_hand:
+                my_hand.pop(random.randrange(len(my_hand)))
             send_card_counts()
             resolve_pending_penalty()
 
@@ -202,11 +202,11 @@ def gameMulti(screen, clock, gamedata):
         global selecting_target, destroy_cost
         desc = card.get("ability_desc", "")
         if "Piocher 2 cartes" in desc:
-            draw_count = min(2, len(deck), max(0, 5 - len(hand)))
+            draw_count = min(2, len(deck), max(0, 8 - len(hand)))
             for _ in range(draw_count):
                 hand.append(deck.pop(0))
         elif "Pioche une seule tuile" in desc:
-            if deck and len(hand) < 5:
+            if deck and len(hand) < 8:
                 hand.append(deck.pop(0))
         elif "Détruit une tuile adverse" in desc or "Supprime une des tuiles adverses" in desc:
             selecting_target = True
@@ -419,9 +419,9 @@ def gameMulti(screen, clock, gamedata):
                     pioche_rect.collidepoint(mouse_pos)
                     and game_state.get("turn") == my_player_name
                     and game_state.get("state") == "playing"
-                    and len(my_hand) < 5
+                    and len(my_hand) < 8
                 ):
-                    draw_count = min(2, len(my_deck), 5 - len(my_hand))
+                    draw_count = min(2, len(my_deck), 8 - len(my_hand))
                     for _ in range(draw_count):
                         my_hand.append(my_deck.pop(0))
                     send_card_counts()

@@ -2,35 +2,33 @@ import json
 import random
 from Utils import load_path
 
-def init_cards():
+def init_cards(target_size=20):
     datacards = json.load(open(load_path("data", "datacards.json"), "r", encoding="utf-8"))
+    deck = []
+    while len(deck) < target_size:
+        deck.extend(datacards)
+    deck = deck[:target_size]
 
-    list_cards = []
-    for card in datacards:
-        list_cards.append(card)
-
-    pioche_host_cards = list_cards.copy()
+    random.shuffle(deck)
+    pioche_host_cards = deck.copy()
     random.shuffle(pioche_host_cards)
 
-    pioche_client_cards = list_cards.copy()
+    pioche_client_cards = deck.copy()
     random.shuffle(pioche_client_cards)
-    
+
     return pioche_host_cards, pioche_client_cards
-    
+
+
+def draw_initial_cards(deck, count):
+    hand = []
+    for _ in range(min(count, len(deck))):
+        hand.append(deck.pop(0))
+    return hand
+
+
 def host_cards(pioche_host_cards):
-    host_cards = []
+    return draw_initial_cards(pioche_host_cards, 3)
 
-    for cardindex in range(3):
-        host_cards.append(pioche_host_cards[cardindex - 1])
-        pioche_host_cards.remove(pioche_host_cards[cardindex - 1])
-
-    return host_cards
 
 def client_cards(pioche_client_cards):
-    client_cards = []
-
-    for cardindex in range(4):
-        client_cards.append(pioche_client_cards[cardindex - 1])
-        pioche_client_cards.remove(pioche_client_cards[cardindex - 1])
-
-    return client_cards
+    return draw_initial_cards(pioche_client_cards, 4)
