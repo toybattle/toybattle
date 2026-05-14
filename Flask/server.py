@@ -73,7 +73,7 @@ def get_player_star_count(game, player):
 
 def is_victory_stars(game, player):
     map_name = list(map_data.keys())[game["map_id"]]
-    required_stars = map_data[map_name].get("num_stars", 7) // 2 + 1
+    required_stars = map_data[map_name].get("num_stars", 7)
     return get_player_star_count(game, player) >= required_stars
 
 
