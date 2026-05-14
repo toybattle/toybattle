@@ -511,15 +511,6 @@ def gameMulti(screen, clock, gamedata):
         
         my_stars_txt = ui_font.render(f"Mes étoiles : {player_stars[my_player_name]} ★", True, (255, 215, 0))
         enemy_stars_txt = ui_font.render(f"Ennemi : {player_stars[enemy_player_name]} ★", True, (150, 150, 160))
-
-        if(player_stars[my_player_name] >= datamap[map_name].get("num_stars", 7) // 2 + 1):
-            # victory_start = victory_start or current_time
-            # result_text = "Victoire !"
-            # result_render = ui_font.render(result_text, True, (255, 220, 120))
-            # screen.blit(result_render, (WIDTH//2 - result_render.get_width()//2, UI_Y - 80))
-            # if current_time - victory_start > 5:
-            #     return "mainMenu"
-            pass
         
         screen.blit(my_stars_txt, (
             stars_panel_rect.x + 10,

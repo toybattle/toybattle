@@ -47,15 +47,26 @@ def is_victory_tile(game, unit):
     return False
 
 
+def get_player_star_count(game, player):
+    map_name = list(map_data.keys())[game["map_id"]]
+    star_zones = map_data[map_name].get("star_zones", [])
+    tile_owners = {u["tile_id"]: u["player"] for u in game["units"]}
+    count = 0
+    for zone in star_zones:
+        req_tiles = zone.get("required_tiles", [])
+        if not req_tiles:
+            continue
+        owner = tile_owners.get(req_tiles[0])
+        if owner and all(tile_owners.get(tid) == owner for tid in req_tiles):
+            if owner == player:
+                count += 1
+    return count
+
+
 def is_victory_stars(game, player):
-    # map_name = list(map_data.keys())[game["map_id"]]
-    # player_stars = sum(
-    #     t.get("stars", 0)
-    #     for t in map_data[map_name]["tiles"]
-    #     if any(u["tile_id"] == t["id"] and u["player"] == player for u in game["units"])
-    # )
-    # return player_stars >= map_data[map_name].get("num_stars", 7) // 2 + 1
-    pass
+    map_name = list(map_data.keys())[game["map_id"]]
+    required_stars = map_data[map_name].get("num_stars", 7) // 2 + 1
+    return get_player_star_count(game, player) >= required_stars
 
 
 def has_path_to_enemy_fortress(game, target_tile_id, player):
@@ -159,6 +170,10 @@ def move():
 
     # Vérifier la condition de victoire par forteresse ennemie
     if is_victory_tile(game, new_unit) and has_path_to_enemy_fortress(game, new_unit["tile_id"], player):
+        game["state"] = "finished"
+        game["winner"] = player
+    # Vérifier la condition de victoire par nombre d'étoiles
+    elif is_victory_stars(game, player):
         game["state"] = "finished"
         game["winner"] = player
     elif change_turn:

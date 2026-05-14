@@ -113,36 +113,29 @@ def leaderboard(screen, clock, windowsdata, WIDTH, HEIGHT):
             else:
                 rows[-1][1].append(tile)
 
-        # Prepare top 3 and current user row
-        # top_players = [player for player in player_stats if player[0] != current_user][:3]
-        # print("Top players:", top_players)
-        # current_player = next((player for player in player_stats if player[0] == current_user), None)
-        # print("Current player:", current_player)
+        ranked_stats = [(idx + 1, player[0], player[1]) for idx, player in enumerate(player_stats)]
+        top_rows = ranked_stats[:3]
 
-        top_players = [player for player in player_stats][:3]
-
-        if(current_user in [player[0] for player in player_stats]):
-            top_players = [player for player in player_stats][:4]
-
-        current_player = next((player for player in player_stats if player[0] == current_user), None)
-
-        leaderboard_rows = top_players[:3]
+        leaderboard_rows = top_rows.copy()
         if current_user:
-            leaderboard_rows.append(current_player or (current_user, {'victoires': 0, 'games': 0, 'winrate': 0}))
-        else:
-            leaderboard_rows = player_stats[:4]
+            current_entry = next((entry for entry in ranked_stats if entry[1] == current_user), None)
+            if current_entry:
+                rank, _, stats = current_entry
+                leaderboard_rows.append((rank, "moi", stats))
+            else:
+                leaderboard_rows.append((len(ranked_stats) + 1, "moi", {'victoires': 0, 'games': 0, 'winrate': 0}))
 
         for row_index, (_, row_tiles) in enumerate(rows):
             if row_index >= len(leaderboard_rows):
                 break
 
             row_tiles = sorted(row_tiles, key=lambda t: t.get('x', 0))
-            player = leaderboard_rows[row_index]
+            rank, player_name, player_stats_row = leaderboard_rows[row_index]
             values = [
-                str(row_index + 1),
-                player[0],
-                str(player[1]['victoires']),
-                f"{player[1]['winrate']}%"
+                str(rank),
+                player_name,
+                str(player_stats_row['victoires']),
+                f"{player_stats_row['winrate']}%"
             ]
 
             for col_index, tile in enumerate(row_tiles):
