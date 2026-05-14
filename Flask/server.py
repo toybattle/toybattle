@@ -399,36 +399,35 @@ def resolve_battles(game, new_unit):
 def apply_card_effects(game, new_unit):
     """Applique les effets de la carte placée"""
     card_name = new_unit["card"]["name"]
+    player = new_unit["player"]
     change_turn = True
     
     # Captain: Rejoue immédiatement
     if "Cap'taine" in card_name or "Captain" in card_name:
         change_turn = False
     
-    # Skully: Pioche 2 cartes à l'adversaire
+    # Skully: Le joueur pioche 2 cartes
     elif "Skully" in card_name:
-        opponent = "client" if new_unit["player"] == "server" else "server"
-        hand_count = game["card_counts"][opponent].get("hand", 0)
-        deck_count = game["card_counts"][opponent].get("deck", 0)
-        # L'adversaire pioche jusqu'à 2 cartes si possible
+        hand_count = game["card_counts"][player].get("hand", 0)
+        deck_count = game["card_counts"][player].get("deck", 0)
+        # Le joueur pioche jusqu'à 2 cartes si possible
         if deck_count > 0:
             draw_count = min(2, deck_count, max(0, 8 - hand_count))
-            game["card_counts"][opponent]["hand"] = hand_count + draw_count
-            game["card_counts"][opponent]["deck"] = deck_count - draw_count
+            game["card_counts"][player]["hand"] = hand_count + draw_count
+            game["card_counts"][player]["deck"] = deck_count - draw_count
     
-    # Star: Pioche 1 carte à l'adversaire
+    # Star: Le joueur pioche 1 carte
     elif "Star" in card_name:
-        opponent = "client" if new_unit["player"] == "server" else "server"
-        hand_count = game["card_counts"][opponent].get("hand", 0)
-        deck_count = game["card_counts"][opponent].get("deck", 0)
-        # L'adversaire pioche 1 carte si possible
+        hand_count = game["card_counts"][player].get("hand", 0)
+        deck_count = game["card_counts"][player].get("deck", 0)
+        # Le joueur pioche 1 carte si possible
         if deck_count > 0 and hand_count < 8:
-            game["card_counts"][opponent]["hand"] = hand_count + 1
-            game["card_counts"][opponent]["deck"] = deck_count - 1
+            game["card_counts"][player]["hand"] = hand_count + 1
+            game["card_counts"][player]["deck"] = deck_count - 1
     
     # XB42: Supprime une carte aléatoirement de la main de l'adversaire
     elif "XB-42" in card_name or "XB42" in card_name:
-        opponent = "client" if new_unit["player"] == "server" else "server"
+        opponent = "client" if player == "server" else "server"
         hand_count = game["card_counts"][opponent].get("hand", 0)
         if hand_count > 0:
             game["card_counts"][opponent]["hand"] = hand_count - 1
@@ -437,7 +436,7 @@ def apply_card_effects(game, new_unit):
     # Mastok: Sélection de cible après placement (détruit une carte adjacente ennemie)
     elif "Mastok" in card_name:
         game["pending_target"] = {
-            "player": new_unit["player"],
+            "player": player,
             "tile_id": new_unit["tile_id"],
             "card": new_unit["card"]
         }

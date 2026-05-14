@@ -415,8 +415,23 @@ def gameMulti(screen, clock, gamedata):
                             x, y = get_screen_pos(tile["id"])
                             systeme_particules.create_particles(x, y, nombre=40)
                             
+                            card_played = my_hand[selected_card_index]
                             my_hand.pop(selected_card_index)
                             selected_card_index = None
+                            
+                            # Application des effets côté client pour Skully et Star
+                            card_name = card_played.get("name", "")
+                            if "Skully" in card_name:
+                                # Pioche 2 cartes
+                                draw_count = min(2, len(my_deck), max(0, 8 - len(my_hand)))
+                                for _ in range(draw_count):
+                                    if my_deck:
+                                        my_hand.append(my_deck.pop(0))
+                            elif "Star" in card_name:
+                                # Pioche 1 carte
+                                if my_deck and len(my_hand) < 8:
+                                    my_hand.append(my_deck.pop(0))
+                            
                             send_card_counts()
                             
                             try:
