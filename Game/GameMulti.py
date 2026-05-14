@@ -1,6 +1,7 @@
 import pygame
 import sys
 import json
+import random
 import requests
 import time
 import Cards
@@ -129,6 +130,7 @@ def gameMulti(screen, clock, gamedata):
                 if r.status_code == 200:
                     with game_state_lock:
                         game_state.update(r.json())
+                    handle_pending_penalty()
             except:
                 pass
             time.sleep(poll_interval)
@@ -144,8 +146,36 @@ def gameMulti(screen, clock, gamedata):
         except:
             pass
 
+    def send_card_counts():
+        try:
+            requests.post(f"{BASE_URL}/update_card_counts", json={
+                "game_id": game_id,
+                "player": my_player_name,
+                "hand_count": len(my_hand),
+                "deck_count": len(my_deck)
+            }, timeout=2)
+        except:
+            pass
+
+    def resolve_pending_penalty():
+        try:
+            requests.post(f"{BASE_URL}/resolve_deck_penalty", json={
+                "game_id": game_id,
+                "player": my_player_name
+            }, timeout=2)
+        except:
+            pass
+
+    def handle_pending_penalty():
+        if game_state.get("pending_deck_penalty") == my_player_name:
+            if my_deck:
+                my_deck.pop(random.randrange(len(my_deck)))
+            send_card_counts()
+            resolve_pending_penalty()
+
     polling_thread = threading.Thread(target=poll_server, daemon=True)
     polling_thread.start()
+    send_card_counts()
 
     # --- LOGIQUE DE PLACEMENT ---
 
@@ -373,6 +403,7 @@ def gameMulti(screen, clock, gamedata):
                                     can_play_extra = True
                             selected_card_index = None
                             execute_ability(current_card, game_state.get("units", []), my_hand, my_deck)
+                            send_card_counts()
                             
                             try:
                                 r = requests.get(f"{BASE_URL}/state", params={"game_id": game_id}, timeout=1)
@@ -384,9 +415,23 @@ def gameMulti(screen, clock, gamedata):
 
                 # Click sur la pioche
                 pioche_rect = pygame.Rect(MAP_X + MAP_WIDTH + 20, MAP_Y + 300, 100, 130)
-                if pioche_rect.collidepoint(mouse_pos) and (len(my_hand) < 5):
-                    if my_deck:
+                if (
+                    pioche_rect.collidepoint(mouse_pos)
+                    and game_state.get("turn") == my_player_name
+                    and game_state.get("state") == "playing"
+                    and len(my_hand) < 5
+                ):
+                    draw_count = min(2, len(my_deck), 5 - len(my_hand))
+                    for _ in range(draw_count):
                         my_hand.append(my_deck.pop(0))
+                    send_card_counts()
+                    try:
+                        requests.post(f"{BASE_URL}/draw", json={
+                            "game_id": game_id,
+                            "player": my_player_name
+                        }, timeout=2)
+                    except:
+                        pass
 
                 # Sélection de cible pour destruction
                 if selecting_target:
@@ -401,6 +446,7 @@ def gameMulti(screen, clock, gamedata):
                                 if destroy_cost:
                                     if my_hand:
                                         my_hand.pop(0)
+                                        send_card_counts()
                                     destroy_cost = False
                                 selecting_target = False
                                 break
@@ -440,6 +486,8 @@ def gameMulti(screen, clock, gamedata):
                 except Exception as exception:
                     print(exception)
                 result_text = "Victoire !"
+            elif winner == "draw":
+                result_text = "Match nul..."
             else:
                 result_text = "Défaite..."
             result_render = ui_font.render(result_text, True, (255, 220, 120))

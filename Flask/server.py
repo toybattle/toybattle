@@ -20,7 +20,8 @@ def gen_code():
 
 def map_choice():
     # Retourne un index de map (0 ou 1 pour l'instant)
-    return random.randint(0, len(map_data)-1)
+    # return random.randint(0, len(map_data)-1)
+    return 0
 
 # Structure d'une partie
 def create_game_struct(map_id):
@@ -30,7 +31,12 @@ def create_game_struct(map_id):
         "state": "waiting",  # waiting / playing / finished
         "winner": None,
         "map_id": map_id,
-        "units": []  # Liste des unités posées: {"tile_id": ..., "card": ..., "player": ...}
+        "units": [],  # Liste des unités posées: {"tile_id": ..., "card": ..., "player": ...}
+        "card_counts": {
+            "server": {"hand": 0, "deck": 0},
+            "client": {"hand": 0, "deck": 0}
+        },
+        "pending_deck_penalty": None
     }
 
 
@@ -67,6 +73,35 @@ def is_victory_stars(game, player):
     map_name = list(map_data.keys())[game["map_id"]]
     required_stars = map_data[map_name].get("num_stars", 7) // 2 + 1
     return get_player_star_count(game, player) >= required_stars
+
+
+def check_card_exhaustion(game):
+    if game["state"] != "playing":
+        return
+
+    card_counts = game.get("card_counts", {})
+    server_total = card_counts.get("server", {}).get("hand", 0) + card_counts.get("server", {}).get("deck", 0)
+    client_total = card_counts.get("client", {}).get("hand", 0) + card_counts.get("client", {}).get("deck", 0)
+
+    if server_total == 0 and client_total == 0:
+        server_stars = get_player_star_count(game, "server")
+        client_stars = get_player_star_count(game, "client")
+        if server_stars > client_stars:
+            game["winner"] = "server"
+        elif client_stars > server_stars:
+            game["winner"] = "client"
+        else:
+            game["winner"] = "draw"
+        game["state"] = "finished"
+
+
+def switch_turn(game):
+    if game["turn"] and len(game["players"]) == 2:
+        game["turn"] = (
+            game["players"][1]
+            if game["turn"] == game["players"][0]
+            else game["players"][0]
+        )
 
 
 def has_path_to_enemy_fortress(game, target_tile_id, player):
@@ -227,16 +262,72 @@ def apply_card_effects(game, new_unit):
                 game["units"].remove(unit)
                 break  # Supprime une seule
     elif card_name == "XB-42":
-        # Supprime une des tuiles adverses (choisir la première)
-        for unit in game["units"]:
-            if unit["player"] != new_unit["player"]:
-                game["units"].remove(unit)
-                break
+        opponent = "client" if new_unit["player"] == "server" else "server"
+        deck_count = game["card_counts"][opponent].get("deck", 0)
+        if deck_count > 0:
+            game["card_counts"][opponent]["deck"] = deck_count - 1
+            game["pending_deck_penalty"] = opponent
     elif card_name == "Cap'taine":
         # Rejouer immédiatement
         change_turn = False
     # Autres effets peuvent être ajoutés ici
     return change_turn
+
+@app.route("/update_card_counts", methods=["POST"])
+def update_card_counts():
+    data = request.json
+    game_id = data.get("game_id")
+    player = data.get("player")
+    hand_count = data.get("hand_count")
+    deck_count = data.get("deck_count")
+
+    if not game_id or game_id not in games:
+        return jsonify({"error": "Game not found"}), 404
+
+    if player not in ("server", "client"):
+        return jsonify({"error": "Invalid player"}), 400
+
+    game = games[game_id]
+    game["card_counts"][player]["hand"] = max(0, int(hand_count or 0))
+    game["card_counts"][player]["deck"] = max(0, int(deck_count or 0))
+    check_card_exhaustion(game)
+    return jsonify({"message": "counts updated", "game": game})
+
+@app.route("/draw", methods=["POST"])
+def draw():
+    data = request.json
+    game_id = data.get("game_id")
+    player = data.get("player")
+
+    if not game_id or game_id not in games:
+        return jsonify({"error": "Game not found"}), 404
+
+    game = games[game_id]
+    if game["state"] != "playing":
+        return jsonify({"error": "Game not started"}), 400
+
+    if game["turn"] != player:
+        return jsonify({"error": "Not your turn"}), 400
+
+    switch_turn(game)
+    return jsonify({"message": "draw done", "game": game})
+
+@app.route("/resolve_deck_penalty", methods=["POST"])
+def resolve_deck_penalty():
+    data = request.json
+    game_id = data.get("game_id")
+    player = data.get("player")
+
+    if not game_id or game_id not in games:
+        return jsonify({"error": "Game not found"}), 404
+
+    if player not in ("server", "client"):
+        return jsonify({"error": "Invalid player"}), 400
+
+    game = games[game_id]
+    if game.get("pending_deck_penalty") == player:
+        game["pending_deck_penalty"] = None
+    return jsonify({"message": "penalty resolved", "game": game})
 
 # Voir l'état du jeu (Polling)
 @app.route("/state", methods=["GET"])
