@@ -18,7 +18,7 @@
         "name": "Mastok",
         "image_path": "Mastok.png",
         "strength": 3,
-        "ability_desc": "Détruit une tuile adverse (même si elle est plus forte) et supprime la tuile du dessus uniquement (lien avec la carte en face ou à côté)"
+        "ability_desc": "Détruit une tuile adverse (lien avec la carte en face ou à côté)"
     },
     {
         "id": 4,
@@ -32,7 +32,7 @@
         "name": "XB-42",
         "image_path": "XB42.png",
         "strength": 4,
-        "ability_desc": "Supprime une des tuiles adverses"
+        "ability_desc": "Supprime une des tuiles dans la main adverses"
     },
     {
         "id": 6,
@@ -46,7 +46,7 @@
         "name": "Roxy",
         "image_path": "Roxy.png",
         "strength": 6,
-        "ability_desc": "Pas de pouvoir - Rien ne peut le recouvrir à part le Joker"
+        "ability_desc": "Pas de pouvoir"
     },
     {
         "id": 8,
