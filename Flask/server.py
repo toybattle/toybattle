@@ -20,8 +20,7 @@ def gen_code():
 
 def map_choice():
     # Retourne un index de map (0 ou 1 pour l'instant)
-    # return random.randint(0, len(map_data)-1)
-    return 0
+    return random.randint(0, len(map_data)-1)
 
 # Structure d'une partie
 def create_game_struct(map_id):

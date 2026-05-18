@@ -51,7 +51,7 @@ pip install -r requirements.txt
 - Choix du mode de jeu :
   - Joueur vs Joueur
   - Joueur vs IA
-- Attribution aléatoire :
+- Attribution aléatoire : -> ICI ARRET
   - De la map
   - Du camp (Rouge / Bleu)
 - Système de tirage de cartes

@@ -19,7 +19,7 @@ async def w(game_id):
         print(game_id)
         print(f"Payload data: {payload["data"]["record"]["room_id"]} roomid, {payload["data"]["record"]["status"]} status")
         
-        if str(payload["data"]["record"]["room_id"]) == str(game_id) and payload["data"]["record"]["status"] == "started":
+        if str(payload["data"]["record"]["room_id"]) == str(game_id) and payload["data"]["record"]["status"] == "STARTED":
             print("Joueur trouvé")
             player_found.set()  # signal pour arrêter le timeout
 
@@ -32,12 +32,12 @@ async def w(game_id):
     ).subscribe()
 
     try:
-        # Attend jusqu'à 10 secondes ou jusqu'à ce qu'un joueur soit trouvé
+        # Attend jusqu'à 100 secondes ou jusqu'à ce qu'un joueur soit trouvé
         await asyncio.wait_for(player_found.wait(), timeout=100)
         print("Matchmaking réussi")
         return True
     except asyncio.TimeoutError:
-        await supabase.table('games').update({'status': 'timed_out'}).eq('room_id', game_id).execute()
+        await supabase.table('games').update({'status': 'TIMED_OUT'}).eq('room_id', game_id).execute()
         print("Matchmaking timed out")
         return False
 
